@@ -7,9 +7,16 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { SerializeInterceptor } from './common/interceptors/serialize.interceptor.js';
+import { TokensModule } from './modules/tokens/tokens.module.js';
 
 @Module({
-  imports: [CustomConfigModule, PrismaModule, UsersModule, AuthModule],
+  imports: [
+    CustomConfigModule,
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    TokensModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
