@@ -32,7 +32,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
-
+      '@typescript-eslint/Unsafe member access .hash on a type that cannot be resolved.'
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },

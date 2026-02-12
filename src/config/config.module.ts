@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { configValidationSchema } from './config.schema';
-import { CustomConfigService } from './config.service';
+import { configValidationSchema } from './config.schema.js';
+import { CustomConfigService } from './config.service.js';
 
 @Module({
   imports: [
