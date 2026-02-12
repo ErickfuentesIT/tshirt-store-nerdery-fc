@@ -1,8 +1,15 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module.js';
+import { CustomConfigService } from './config/config.service.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  const configService = app.get(CustomConfigService);
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true })); // Pipe that validates incoming requests against their DTOs
+
+  const port: number = configService.app.port;
+  await app.listen(port);
 }
 bootstrap();
