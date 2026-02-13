@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppService } from './app.service.js';
 import { CustomConfigModule } from './config/config.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -11,6 +12,12 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
 @Module({
   imports: [
     CustomConfigModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: 'short', ttl: 60000, limit: 10 }, // Only 3 requests per minute - DEFAULT
+        { name: 'long', ttl: 3600000, limit: 100 }, // 10 requests per hour - DEFAULT
+      ],
+    }),
     PrismaModule,
     UsersModule,
     AuthModule,
@@ -21,6 +28,10 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
     {
       provide: APP_INTERCEPTOR,
       useClass: SerializeInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })
