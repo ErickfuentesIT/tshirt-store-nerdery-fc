@@ -9,12 +9,14 @@ import { CustomConfigService } from '../../config/config.service.js';
 import { RefreshJwtStrategy } from './strategies/refresh.strategy.js';
 import { ConfigModule } from '@nestjs/config';
 import { TokensModule } from '../tokens/tokens.module.js';
+import { EmailModule } from '../email/email.module.js';
 
 @Module({
   imports: [
     UsersModule,
     CustomConfigModule,
     TokensModule,
+    EmailModule,
     JwtModule.registerAsync({
       imports: [CustomConfigModule],
       useFactory: (configService: CustomConfigService) => ({

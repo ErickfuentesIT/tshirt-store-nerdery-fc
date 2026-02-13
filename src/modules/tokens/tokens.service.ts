@@ -46,6 +46,44 @@ export class TokensService {
     });
   }
 
+  async createPasswordResetToken(userId: string, ttl: string) {
+    // Invalidate any existing password reset tokens for this user
+    await this.prisma.jwtToken.updateMany({
+      where: {
+        userId,
+        type: TokenType.password_reset,
+        isValid: true,
+      },
+      data: { isValid: false },
+    });
+
+    const tokenId = uuidv4();
+    const expiresAt = this.calculateExpiryDate(ttl);
+
+    const token = await this.prisma.jwtToken.create({
+      data: {
+        userId,
+        tokenId,
+        type: TokenType.password_reset,
+        expiresAt,
+        isValid: true,
+      },
+    });
+
+    return token.tokenId;
+  }
+
+  async findValidPasswordResetToken(tokenId: string) {
+    return this.prisma.jwtToken.findFirst({
+      where: {
+        tokenId,
+        type: TokenType.password_reset,
+        isValid: true,
+        expiresAt: { gt: new Date() },
+      },
+    });
+  }
+
   private calculateExpiryDate(ttl: string): Date {
     const numeric = parseInt(ttl);
     const unit = ttl.slice(-1);
@@ -53,6 +91,8 @@ export class TokensService {
 
     if (unit === 'd') now.setDate(now.getDate() + numeric);
     else if (unit === 'h') now.setHours(now.getHours() + numeric);
+    else if (unit === 'm') now.setMinutes(now.getMinutes() + numeric);
+    else if (unit === 's') now.setSeconds(now.getSeconds() + numeric);
     else now.setDate(now.getDate() + 7); // Default fallback
 
     return now;

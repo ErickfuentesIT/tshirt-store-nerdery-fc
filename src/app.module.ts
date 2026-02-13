@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { CustomConfigModule } from './config/config.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -17,7 +16,6 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
     AuthModule,
     TokensModule,
   ],
-  controllers: [AppController],
   providers: [
     AppService,
     {

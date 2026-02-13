@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service.js';
 import { CreateUserRequestDto } from '../users/dto/request/create-user.dto.js';
@@ -8,6 +12,7 @@ import { CustomConfigService } from '../../config/config.service.js';
 import { AuthJwtPayload } from './types/auth-jwt-payload.type.js';
 import { TokensService } from '../tokens/tokens.service.js';
 import { RefreshJwtPayload } from './types/refresh-jwt-payload.type.js';
+import { EmailService } from '../email/email.service.js';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +21,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly tokensService: TokensService,
+    private readonly emailService: EmailService,
   ) {}
 
   async login(input: SignInRequestDto) {
@@ -107,5 +113,37 @@ export class AuthService {
 
   async logout(tokenId: string) {
     return await this.tokensService.revokeToken(tokenId);
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+
+    if (user) {
+      const token = await this.tokensService.createPasswordResetToken(
+        user.id,
+        this.configService.passwordReset.ttl, // 15 minutes
+      );
+
+      await this.emailService.sendPasswordResetEmail(user.email, token);
+    }
+
+    return {
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const tokenRecord =
+      await this.tokensService.findValidPasswordResetToken(token);
+
+    if (!tokenRecord) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+
+    await this.usersService.updatePassword(tokenRecord.userId, newPassword);
+    await this.tokensService.revokeToken(token);
+
+    return { message: 'Password has been reset successfully.' };
   }
 }

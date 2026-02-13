@@ -6,6 +6,8 @@ import { SignInRequestDto } from './dto/login.dto.js';
 import { Serialize } from '../../common/decorators/serialize.decorator.js';
 import { RefreshAuthGuard } from './guards/refresh-auth/refresh-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth/jwt-auth.guard.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -32,5 +34,15 @@ export class AuthController {
   async logout(@Request() req) {
     await this.authService.logout(req.user.jti);
     return { message: 'Logged out successfully' };
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body.token, body.newPassword);
   }
 }

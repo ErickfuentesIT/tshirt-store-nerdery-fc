@@ -33,5 +33,18 @@ export class CustomConfigService {
       ) as StringValue,
     };
   }
+
+  get sendgrid() {
+    return {
+      apiKey: this.configService.getOrThrow<string>('SENDGRID_API_KEY'),
+      fromEmail: this.configService.getOrThrow<string>('SENDGRID_FROM_EMAIL'),
+    };
+  }
+
+  get passwordReset() {
+    return {
+      ttl: this.configService.get<string>('PASSWORD_RESET_TTL', '15m'),
+    };
+  }
 }
 export { ConfigService };
