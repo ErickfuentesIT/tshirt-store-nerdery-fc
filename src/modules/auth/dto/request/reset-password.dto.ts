@@ -1,6 +1,11 @@
-import { IsNotEmpty, IsString, IsStrongPassword, IsUUID } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsStrongPassword,
+  IsUUID,
+} from 'class-validator';
 
-export class ResetPasswordDto {
+export class ResetPasswordRequestDto {
   @IsString()
   @IsNotEmpty()
   @IsUUID()
