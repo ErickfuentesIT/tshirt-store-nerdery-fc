@@ -60,3 +60,63 @@ model JwtToken {
 
   @@map("jwt_tokens")
 }
+
+model Category {
+  id       String    @id @default(uuid()) @db.Uuid
+  name     String    @db.VarChar
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @db.VarChar
+  description String?          @db.Text
+  basePrice   Int              @map("base_price")
+  isActive    Boolean          @default(true) @map("is_active")
+  categoryId  String           @db.Uuid @map("category_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  category    Category         @relation(fields: [categoryId], references: [id])
+  variants    ProductVariant[]
+  images      Image[]
+  // likes       Like[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id                 String   @id @default(uuid()) @db.Uuid
+  productId          String   @db.Uuid @map("product_id")
+  sku                String   @unique @db.VarChar
+  stock              Int
+  priceCents         Int      @map("price_cents")
+  isActive           Boolean  @default(true) @map("is_active")
+  attributesSnapshot Json     @map("attributes_snapshot")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  product            Product  @relation(fields: [productId], references: [id])
+  images             Image[]
+  
+  // Future relations (cart and orders)
+  // cartItems       CartItem[]
+  // orderItems      OrderItem[]
+
+  @@map("product_variants")
+}
+
+model Image {
+  id        String   @id @default(uuid()) @db.Uuid // Añadido un PK para Prisma
+  productId String?  @db.Uuid @map("product_id")
+  variantId String?  @db.Uuid @map("variant_id")
+  imageUrl  String   @db.VarChar @map("image_url")
+  imageKey  String   @db.VarChar @map("image_key")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product   Product? @relation(fields: [productId], references: [id])
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("images")
+}
