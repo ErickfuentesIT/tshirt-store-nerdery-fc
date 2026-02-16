@@ -11,8 +11,9 @@ import { UsersModule } from './modules/users/users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { SerializeInterceptor } from './common/interceptors/serialize.interceptor.js';
 import { TokensModule } from './modules/tokens/tokens.module.js';
-import { HealthModule } from './modules/health/health.module.js';
-
+import { ProductsModule } from './modules/products/products.module.js';
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+import { CategoriesModule } from './modules/categories/categories.module.js';
 @Module({
   imports: [
     CustomConfigModule,
@@ -20,7 +21,8 @@ import { HealthModule } from './modules/health/health.module.js';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
-      playground: true,
+      playground: false,
+      plugins: [ApolloServerPluginLandingPageLocalDefault() as any], // Enable the Apollo Sandbox landing page
       context: ({ req, res }) => ({ req, res }),
     }),
     ThrottlerModule.forRoot({
@@ -33,7 +35,8 @@ import { HealthModule } from './modules/health/health.module.js';
     UsersModule,
     AuthModule,
     TokensModule,
-    HealthModule,
+    ProductsModule,
+    CategoriesModule,
   ],
   providers: [
     {

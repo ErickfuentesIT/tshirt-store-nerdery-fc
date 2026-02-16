@@ -38,7 +38,7 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  // Relaciones
+  // Relations
   jwtTokens    JwtToken[]
   
   // ADDING MORE WHEN BUILDING THOSE FEATURES
@@ -108,7 +108,7 @@ model ProductVariant {
 }
 
 model Image {
-  id        String   @id @default(uuid()) @db.Uuid // Añadido un PK para Prisma
+  id        String   @id @default(uuid()) @db.Uuid 
   productId String?  @db.Uuid @map("product_id")
   variantId String?  @db.Uuid @map("variant_id")
   imageUrl  String   @db.VarChar @map("image_url")

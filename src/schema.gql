@@ -2,6 +2,87 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type Category {
+  id: ID!
+  name: String!
+}
+
+input CreateCategoryInput {
+  name: String!
+}
+
+input CreateProductInput {
+  basePrice: Int!
+  categoryId: String!
+  description: String
+  name: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Image {
+  createdAt: DateTime!
+  id: ID!
+  imageUrl: String!
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+type Mutation {
+  createCategory(data: CreateCategoryInput!): Category!
+  createProduct(data: CreateProductInput!): Product!
+  deleteCategory(id: ID!): Category!
+  deleteProduct(id: ID!): Product!
+  disableProduct(id: ID!): Product!
+  updateCategory(data: CreateCategoryInput!, id: ID!): Category!
+  updateProduct(data: UpdateProductInput!, id: ID!): Product!
+}
+
+type Product {
+  basePrice: Int!
+  category: Category
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  images: [Image!]
+  isActive: Boolean!
+  name: String!
+  updatedAt: DateTime!
+  variants: [ProductVariant!]
+}
+
+type ProductVariant {
+  attributesSnapshot: JSON!
+  id: ID!
+  images: [Image!]
+  isActive: Boolean!
+  priceCents: Int!
+  productId: String!
+  sku: String!
+  stock: Int!
+  updatedAt: DateTime!
+}
+
 type Query {
-  hello: String!
+  categories: [Category!]!
+  category(id: ID!): Category!
+  product(id: ID!): Product!
+
+  """
+  Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10
+  """
+  products(skip: Int! = 0, take: Int! = 10): [Product!]!
+}
+
+input UpdateProductInput {
+  basePrice: Int
+  categoryId: String
+  description: String
+  name: String
 }
