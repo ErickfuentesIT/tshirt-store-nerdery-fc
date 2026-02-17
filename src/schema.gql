@@ -2,8 +2,30 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type Attribute {
+  attributeCategories: [AttributeCategory!]
+  id: ID!
+  name: String!
+}
+
+type AttributeCategory {
+  attribute: Attribute
+  attributeId: String!
+  id: ID!
+  value: String!
+}
+
 type Category {
   id: ID!
+  name: String!
+}
+
+input CreateAttributeCategoryInput {
+  attributeId: String!
+  value: String!
+}
+
+input CreateAttributeInput {
   name: String!
 }
 
@@ -25,6 +47,11 @@ input CreateProductVariantInput {
   stock: Int!
 }
 
+input CreateVariantAttributeCategoryInput {
+  attributeCategoryId: String!
+  variantId: String!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -37,14 +64,22 @@ type Image {
 }
 
 type Mutation {
+  assignAttributeToVariant(data: CreateVariantAttributeCategoryInput!): VariantAttributeCategory!
+  createAttribute(data: CreateAttributeInput!): Attribute!
+  createAttributeCategory(data: CreateAttributeCategoryInput!): AttributeCategory!
   createCategory(data: CreateCategoryInput!): Category!
   createProduct(data: CreateProductInput!): Product!
   createProductVariant(data: CreateProductVariantInput!): ProductVariant!
+  deleteAttribute(id: ID!): Attribute!
+  deleteAttributeCategory(id: ID!): AttributeCategory!
   deleteCategory(id: ID!): Category!
   deleteProduct(id: ID!): Product!
   deleteProductVariant(id: ID!): ProductVariant!
   disableProduct(id: ID!): Product!
   disableProductVariant(id: ID!): ProductVariant!
+  removeAttributeFromVariant(id: ID!): VariantAttributeCategory!
+  updateAttribute(data: UpdateAttributeInput!, id: ID!): Attribute!
+  updateAttributeCategory(data: UpdateAttributeCategoryInput!, id: ID!): AttributeCategory!
   updateCategory(data: CreateCategoryInput!, id: ID!): Category!
   updateProduct(data: UpdateProductInput!, id: ID!): Product!
   updateProductVariant(data: UpdateProductVariantInput!, id: ID!): ProductVariant!
@@ -72,9 +107,14 @@ type ProductVariant {
   sku: String!
   stock: Int!
   updatedAt: DateTime!
+  variantAttributes: [VariantAttributeCategory!]
 }
 
 type Query {
+  attribute(id: ID!): Attribute!
+  attributeCategories(attributeId: ID!): [AttributeCategory!]!
+  attributeCategory(id: ID!): AttributeCategory!
+  attributes: [Attribute!]!
   categories: [Category!]!
   category(id: ID!): Category!
   product(id: ID!): Product!
@@ -85,6 +125,15 @@ type Query {
   Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10
   """
   products(skip: Int! = 0, take: Int! = 10): [Product!]!
+  variantAttributeCategories(variantId: ID!): [VariantAttributeCategory!]!
+}
+
+input UpdateAttributeCategoryInput {
+  value: String
+}
+
+input UpdateAttributeInput {
+  name: String
 }
 
 input UpdateProductInput {
@@ -98,4 +147,11 @@ input UpdateProductVariantInput {
   priceCents: Int
   sku: String
   stock: Int
+}
+
+type VariantAttributeCategory {
+  attributeCategory: AttributeCategory
+  attributeCategoryId: String!
+  id: ID!
+  variantId: String!
 }

@@ -9,6 +9,15 @@ export class ProductVariantsService {
 
   private readonly includeRelations = {
     images: true,
+    variantAttributes: {
+      include: {
+        attributeCategory: {
+          include: {
+            attribute: true,
+          },
+        },
+      },
+    },
   };
 
   async create(data: CreateProductVariantInput) {
