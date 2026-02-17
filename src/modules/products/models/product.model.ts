@@ -1,7 +1,7 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { Category } from '../../categories/models/category.model.js';
-import { ProductVariant } from '../../product-variants/models/product-variant.model.js';
-import { Image } from '../../images/models/image.model.js';
+import { ProductVariant } from './product-variant.model.js';
+import { Image } from './image.model.js';
 
 @ObjectType()
 export class Product {

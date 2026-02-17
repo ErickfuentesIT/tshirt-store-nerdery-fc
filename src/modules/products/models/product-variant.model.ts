@@ -1,6 +1,6 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { GraphQLJSON } from 'graphql-type-json';
-import { Image } from '../../images/models/image.model.js';
+import { Image } from './image.model.js';
 
 @ObjectType()
 export class ProductVariant {

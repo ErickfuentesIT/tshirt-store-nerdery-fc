@@ -4,15 +4,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service.js';
-import { CreateUserRequestDto } from '../users/dto/request/create-user.dto.js';
+import { UsersService } from '../../users/users.service.js';
+import { CreateUserRequestDto } from '../../users/dto/request/create-user.dto.js';
 import { JwtService } from '@nestjs/jwt';
-import { SignInRequestDto } from './dto/login.dto.js';
-import { CustomConfigService } from '../../config/config.service.js';
-import { AuthJwtPayload } from './types/auth-jwt-payload.type.js';
-import { TokensService } from '../tokens/tokens.service.js';
-import { RefreshJwtPayload } from './types/refresh-jwt-payload.type.js';
-import { EmailService } from '../email/email.service.js';
+import { SignInRequestDto } from '../dto/login.dto.js';
+import { CustomConfigService } from '../../../common/config/config.service.js';
+import { AuthJwtPayload } from '../types/auth-jwt-payload.type.js';
+import { TokensService } from './tokens.service.js';
+import { RefreshJwtPayload } from '../types/refresh-jwt-payload.type.js';
+import { EmailService } from '../../../common/email/email.service.js';
 
 @Injectable()
 export class AuthService {

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import sgMail from '@sendgrid/mail';
-import { CustomConfigService } from '../../config/config.service.js';
+import { CustomConfigService } from '../config/config.service.js';
 
 @Injectable()
 export class EmailService {
