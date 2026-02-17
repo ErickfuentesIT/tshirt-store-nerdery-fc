@@ -6,5 +6,5 @@ export class UpdateAttributeCategoryInput {
   @Field(() => String, { nullable: true })
   @IsString()
   @IsOptional()
-  value?: string;
+  name?: string;
 }

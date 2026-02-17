@@ -11,9 +11,9 @@ export class ProductVariantsService {
     images: true,
     variantAttributes: {
       include: {
-        attributeCategory: {
+        attribute: {
           include: {
-            attribute: true,
+            attributeCategory: true,
           },
         },
       },
@@ -56,15 +56,6 @@ export class ProductVariantsService {
     return this.prisma.productVariant.update({
       where: { id },
       data,
-      include: this.includeRelations,
-    });
-  }
-
-  async remove(id: string) {
-    await this.findOne(id);
-
-    return this.prisma.productVariant.delete({
-      where: { id },
       include: this.includeRelations,
     });
   }

@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
-import { CreateAttributeInput } from '../dto/create-attribute.input.js';
 import { UpdateAttributeInput } from '../dto/update-attribute.input.js';
 
 @Injectable()
@@ -8,18 +7,12 @@ export class AttributesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly includeRelations = {
-    attributeCategories: true,
+    attributeCategory: true,
   };
 
-  async create(data: CreateAttributeInput) {
-    return this.prisma.attribute.create({
-      data,
-      include: this.includeRelations,
-    });
-  }
-
-  async findAll() {
+  async findAll(attributeCategoryId: string) {
     return this.prisma.attribute.findMany({
+      where: { attributeCategoryId },
       include: this.includeRelations,
     });
   }

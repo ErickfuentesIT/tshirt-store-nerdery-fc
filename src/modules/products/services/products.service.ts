@@ -53,15 +53,6 @@ export class ProductsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-
-    return this.prisma.product.delete({
-      where: { id },
-      include: this.includeRelations,
-    });
-  }
-
   async disable(id: string) {
     await this.findOne(id);
 

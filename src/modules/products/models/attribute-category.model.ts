@@ -7,11 +7,8 @@ export class AttributeCategory {
   id: string;
 
   @Field(() => String)
-  attributeId: string;
+  name: string;
 
-  @Field(() => String)
-  value: string;
-
-  @Field(() => Attribute, { nullable: true })
-  attribute?: Attribute;
+  @Field(() => [Attribute], { nullable: true })
+  attributes?: Attribute[];
 }

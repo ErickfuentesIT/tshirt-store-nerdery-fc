@@ -11,5 +11,5 @@ export class CreateVariantAttributeCategoryInput {
   @Field(() => String)
   @IsUUID()
   @IsNotEmpty()
-  attributeCategoryId: string;
+  attributeId: string;
 }

@@ -7,9 +7,9 @@ export class VariantAttributeCategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly includeRelations = {
-    attributeCategory: {
+    attribute: {
       include: {
-        attribute: true,
+        attributeCategory: true,
       },
     },
   };

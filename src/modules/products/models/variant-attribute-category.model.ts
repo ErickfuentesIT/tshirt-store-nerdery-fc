@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
-import { AttributeCategory } from './attribute-category.model.js';
+import { Attribute } from './attribute.model.js';
 
 @ObjectType()
 export class VariantAttributeCategory {
@@ -10,8 +10,8 @@ export class VariantAttributeCategory {
   variantId: string;
 
   @Field(() => String)
-  attributeCategoryId: string;
+  attributeId: string;
 
-  @Field(() => AttributeCategory, { nullable: true })
-  attributeCategory?: AttributeCategory;
+  @Field(() => Attribute, { nullable: true })
+  attribute?: Attribute;
 }

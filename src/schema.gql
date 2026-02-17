@@ -3,29 +3,20 @@
 # ------------------------------------------------------
 
 type Attribute {
-  attributeCategories: [AttributeCategory!]
+  attributeCategory: AttributeCategory
+  attributeCategoryId: String!
   id: ID!
-  name: String!
+  value: String!
 }
 
 type AttributeCategory {
-  attribute: Attribute
-  attributeId: String!
+  attributes: [Attribute!]
   id: ID!
-  value: String!
+  name: String!
 }
 
 type Category {
   id: ID!
-  name: String!
-}
-
-input CreateAttributeCategoryInput {
-  attributeId: String!
-  value: String!
-}
-
-input CreateAttributeInput {
   name: String!
 }
 
@@ -55,7 +46,7 @@ input CreateProductVariantInput {
 }
 
 input CreateVariantAttributeCategoryInput {
-  attributeCategoryId: String!
+  attributeId: String!
   variantId: String!
 }
 
@@ -75,10 +66,26 @@ type Image {
   imageUrl: String!
 }
 
+input InsertAttributesWithCategoryInput {
+  """
+  Existing attribute category ID (Case B). Omit to create a new one (Case A).
+  """
+  attributeCategoryId: String
+
+  """Name for the new attribute category (required for Case A)."""
+  name: String
+
+  """List of attribute values to create as children."""
+  values: [String!]!
+}
+
 type Mutation {
   assignAttributeToVariant(data: CreateVariantAttributeCategoryInput!): VariantAttributeCategory!
-  createAttribute(data: CreateAttributeInput!): Attribute!
-  createAttributeCategory(data: CreateAttributeCategoryInput!): AttributeCategory!
+
+  """
+  Creates a new attribute category with its attributes (Case A: provide name + values), or appends attributes to an existing category (Case B: provide attributeCategoryId + values). Runs in a transaction.
+  """
+  createAttributesWithCategory(data: InsertAttributesWithCategoryInput!): AttributeCategory!
   createCategory(data: CreateCategoryInput!): Category!
 
   """
@@ -93,8 +100,6 @@ type Mutation {
 
   """Deletes an image from both S3 and the database."""
   deleteImage(id: ID!): Image!
-  deleteProduct(id: ID!): Product!
-  deleteProductVariant(id: ID!): ProductVariant!
   disableProduct(id: ID!): Product!
   disableProductVariant(id: ID!): ProductVariant!
 
@@ -137,9 +142,9 @@ type ProductVariant {
 
 type Query {
   attribute(id: ID!): Attribute!
-  attributeCategories(attributeId: ID!): [AttributeCategory!]!
+  attributeCategories: [AttributeCategory!]!
   attributeCategory(id: ID!): AttributeCategory!
-  attributes: [Attribute!]!
+  attributes(attributeCategoryId: ID!): [Attribute!]!
   categories: [Category!]!
   category(id: ID!): Category!
   product(id: ID!): Product!
@@ -160,11 +165,11 @@ type SignedUrlResponse {
 }
 
 input UpdateAttributeCategoryInput {
-  value: String
+  name: String
 }
 
 input UpdateAttributeInput {
-  name: String
+  value: String
 }
 
 input UpdateProductInput {
@@ -181,8 +186,8 @@ input UpdateProductVariantInput {
 }
 
 type VariantAttributeCategory {
-  attributeCategory: AttributeCategory
-  attributeCategoryId: String!
+  attribute: Attribute
+  attributeId: String!
   id: ID!
   variantId: String!
 }

@@ -6,5 +6,5 @@ export class UpdateAttributeInput {
   @Field(() => String, { nullable: true })
   @IsString()
   @IsOptional()
-  name?: string;
+  value?: string;
 }

@@ -40,11 +40,6 @@ export class ProductVariantsResolver {
   }
 
   @Mutation(() => ProductVariant)
-  async deleteProductVariant(@Args('id', { type: () => ID }) id: string) {
-    return this.productVariantsService.remove(id);
-  }
-
-  @Mutation(() => ProductVariant)
   async disableProductVariant(@Args('id', { type: () => ID }) id: string) {
     return this.productVariantsService.disable(id);
   }
