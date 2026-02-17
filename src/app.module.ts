@@ -13,6 +13,7 @@ import { SerializeInterceptor } from './common/interceptors/serialize.intercepto
 import { ProductsModule } from './modules/products/products.module.js';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { CategoriesModule } from './modules/categories/categories.module.js';
+import { S3Module } from './common/s3/s3.module.js';
 @Module({
   imports: [
     CustomConfigModule,
@@ -31,6 +32,7 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
       ],
     }),
     PrismaModule,
+    S3Module,
     UsersModule,
     AuthModule,
     ProductsModule,

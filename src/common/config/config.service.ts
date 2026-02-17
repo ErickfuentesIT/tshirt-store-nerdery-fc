@@ -46,5 +46,16 @@ export class CustomConfigService {
       ttl: this.configService.get<string>('PASSWORD_RESET_TTL', '15m'),
     };
   }
+
+  get aws() {
+    return {
+      region: this.configService.getOrThrow<string>('AWS_REGIONS'),
+      accessKeyId: this.configService.getOrThrow<string>('AWS_ACCESS_KEY_ID'),
+      secretAccessKey:
+        this.configService.getOrThrow<string>('AWS_SECRET_ACCESS_KEY'),
+      s3BucketName:
+        this.configService.getOrThrow<string>('AWS_S3_BUCKET_NAME'),
+    };
+  }
 }
 export { ConfigService };

@@ -15,4 +15,8 @@ export const configValidationSchema = Joi.object({
   PASSWORD_RESET_TTL: Joi.string()
     .regex(/^(\d+(ms|s|m|h|d|w|y))$/)
     .default('15m'),
+  AWS_REGIONS: Joi.string().required(),
+  AWS_ACCESS_KEY_ID: Joi.string().required(),
+  AWS_SECRET_ACCESS_KEY: Joi.string().required(),
+  AWS_S3_BUCKET_NAME: Joi.string().required(),
 });

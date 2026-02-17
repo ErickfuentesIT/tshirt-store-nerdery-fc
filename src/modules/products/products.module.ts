@@ -9,6 +9,8 @@ import { AttributeCategoriesService } from './services/attribute-categories.serv
 import { AttributeCategoriesResolver } from './resolvers/attribute-categories.resolver.js';
 import { VariantAttributeCategoriesService } from './services/variant-attribute-categories.service.js';
 import { VariantAttributeCategoriesResolver } from './resolvers/variant-attribute-categories.resolver.js';
+import { ImagesService } from './services/images.service.js';
+import { ImagesResolver } from './resolvers/images.resolver.js';
 
 @Module({
   providers: [
@@ -22,6 +24,8 @@ import { VariantAttributeCategoriesResolver } from './resolvers/variant-attribut
     AttributeCategoriesResolver,
     VariantAttributeCategoriesService,
     VariantAttributeCategoriesResolver,
+    ImagesService,
+    ImagesResolver,
   ],
   exports: [
     ProductsService,
@@ -29,6 +33,7 @@ import { VariantAttributeCategoriesResolver } from './resolvers/variant-attribut
     AttributesService,
     AttributeCategoriesService,
     VariantAttributeCategoriesService,
+    ImagesService,
   ],
 })
 export class ProductsModule {}

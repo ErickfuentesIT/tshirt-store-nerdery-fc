@@ -33,6 +33,13 @@ input CreateCategoryInput {
   name: String!
 }
 
+input CreateImageInput {
+  imageKey: String!
+  imageUrl: String!
+  productId: String
+  variantId: String
+}
+
 input CreateProductInput {
   basePrice: Int!
   categoryId: String!
@@ -57,6 +64,11 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+input GetSignedUrlInput {
+  contentType: String!
+  fileName: String!
+}
+
 type Image {
   createdAt: DateTime!
   id: ID!
@@ -68,15 +80,28 @@ type Mutation {
   createAttribute(data: CreateAttributeInput!): Attribute!
   createAttributeCategory(data: CreateAttributeCategoryInput!): AttributeCategory!
   createCategory(data: CreateCategoryInput!): Category!
+
+  """
+  Creates an image record in the database after the file has been uploaded to S3.
+  """
+  createImage(data: CreateImageInput!): Image!
   createProduct(data: CreateProductInput!): Product!
   createProductVariant(data: CreateProductVariantInput!): ProductVariant!
   deleteAttribute(id: ID!): Attribute!
   deleteAttributeCategory(id: ID!): AttributeCategory!
   deleteCategory(id: ID!): Category!
+
+  """Deletes an image from both S3 and the database."""
+  deleteImage(id: ID!): Image!
   deleteProduct(id: ID!): Product!
   deleteProductVariant(id: ID!): ProductVariant!
   disableProduct(id: ID!): Product!
   disableProductVariant(id: ID!): ProductVariant!
+
+  """
+  Generates a pre-signed URL for uploading an image to S3. The client should use this URL to PUT the file directly to S3. Allowed ContentType: image/png, image/jpeg, image/webp
+  """
+  getSignedUrl(data: GetSignedUrlInput!): SignedUrlResponse!
   removeAttributeFromVariant(id: ID!): VariantAttributeCategory!
   updateAttribute(data: UpdateAttributeInput!, id: ID!): Attribute!
   updateAttributeCategory(data: UpdateAttributeCategoryInput!, id: ID!): AttributeCategory!
@@ -126,6 +151,12 @@ type Query {
   """
   products(skip: Int! = 0, take: Int! = 10): [Product!]!
   variantAttributeCategories(variantId: ID!): [VariantAttributeCategory!]!
+}
+
+type SignedUrlResponse {
+  key: String!
+  publicUrl: String!
+  signedUrl: String!
 }
 
 input UpdateAttributeCategoryInput {
