@@ -1,5 +1,4 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
-import { GraphQLJSON } from 'graphql-type-json';
 import { Image } from './image.model.js';
 
 @ObjectType()
@@ -21,9 +20,6 @@ export class ProductVariant {
 
   @Field(() => Boolean)
   isActive: boolean;
-
-  @Field(() => GraphQLJSON)
-  attributesSnapshot: Record<string, unknown>;
 
   @Field(() => Date)
   updatedAt: Date;
