@@ -1,14 +1,18 @@
 import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
-import { Product } from './models/product.model.js';
-import { ProductsService } from './products.service.js';
-import { CreateProductInput } from './dto/create-product.input.js';
-import { UpdateProductInput } from './dto/update-product.input.js';
+import { Product } from '../models/product.model.js';
+import { ProductsService } from '../services/products.service.js';
+import { CreateProductInput } from '../dto/create-product.input.js';
+import { UpdateProductInput } from '../dto/update-product.input.js';
 
 @Resolver(() => Product)
 export class ProductsResolver {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Query(() => [Product], { name: 'products', description: 'Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10' })
+  @Query(() => [Product], {
+    name: 'products',
+    description:
+      'Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10',
+  })
   async findAll(
     @Args('skip', { type: () => Int, defaultValue: 0 }) skip: number, // page
     @Args('take', { type: () => Int, defaultValue: 10 }) take: number, // range

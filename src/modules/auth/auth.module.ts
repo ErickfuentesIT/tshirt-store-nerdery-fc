@@ -7,15 +7,13 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { CustomConfigModule } from '../../common/config/config.module.js';
 import { CustomConfigService } from '../../common/config/config.service.js';
 import { RefreshJwtStrategy } from './strategies/refresh.strategy.js';
-import { ConfigModule } from '@nestjs/config';
-import { TokensModule } from '../tokens/tokens.module.js';
+import { TokensService } from './services/tokens.service.js';
 import { EmailModule } from '../../common/email/email.module.js';
 
 @Module({
   imports: [
     UsersModule,
     CustomConfigModule,
-    TokensModule,
     EmailModule,
     JwtModule.registerAsync({
       imports: [CustomConfigModule],
@@ -28,7 +26,7 @@ import { EmailModule } from '../../common/email/email.module.js';
       inject: [CustomConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, RefreshJwtStrategy],
+  providers: [AuthService, TokensService, JwtStrategy, RefreshJwtStrategy],
   controllers: [AuthController],
 })
 export class AuthModule {}
