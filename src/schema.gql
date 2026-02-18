@@ -2,11 +2,16 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AddVariantsInput {
+  variants: [CreateVariantInput!]!
+}
+
 type Attribute {
   attributeCategory: AttributeCategory
   attributeCategoryId: String!
+  code: String!
+  displayName: String!
   id: ID!
-  value: String!
 }
 
 type AttributeCategory {
@@ -31,23 +36,27 @@ input CreateImageInput {
   variantId: String
 }
 
-input CreateProductInput {
+input CreateProductWithVariantsInput {
   basePrice: Int!
   categoryId: String!
   description: String
   name: String!
-}
-
-input CreateProductVariantInput {
-  priceCents: Int!
-  productId: String!
-  sku: String!
-  stock: Int!
+  variants: [CreateVariantInput!]!
 }
 
 input CreateVariantAttributeCategoryInput {
   attributeId: String!
   variantId: String!
+}
+
+input CreateVariantInput {
+  """Attribute IDs (values like "Red", "S") to assign to this variant."""
+  attributeValueIds: [String!]!
+
+  """S3 image keys (from getSignedUrl) to link to this variant."""
+  imageKeys: [String!]!
+  priceCents: Int!
+  stock: Int!
 }
 
 """
@@ -80,6 +89,10 @@ input InsertAttributesWithCategoryInput {
 }
 
 type Mutation {
+  """
+  Appends new variants (with attributes and images) to an existing product. Runs in a transaction.
+  """
+  addVariantsToProduct(data: AddVariantsInput!, productId: ID!): Product!
   assignAttributeToVariant(data: CreateVariantAttributeCategoryInput!): VariantAttributeCategory!
 
   """
@@ -92,8 +105,11 @@ type Mutation {
   Creates an image record in the database after the file has been uploaded to S3.
   """
   createImage(data: CreateImageInput!): Image!
-  createProduct(data: CreateProductInput!): Product!
-  createProductVariant(data: CreateProductVariantInput!): ProductVariant!
+
+  """
+  Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute values.
+  """
+  createProduct(data: CreateProductWithVariantsInput!): Product!
   deleteAttribute(id: ID!): Attribute!
   deleteAttributeCategory(id: ID!): AttributeCategory!
   deleteCategory(id: ID!): Category!
@@ -141,21 +157,16 @@ type ProductVariant {
 }
 
 type Query {
-  attribute(id: ID!): Attribute!
   attributeCategories: [AttributeCategory!]!
   attributeCategory(id: ID!): AttributeCategory!
-  attributes(attributeCategoryId: ID!): [Attribute!]!
   categories: [Category!]!
-  category(id: ID!): Category!
   product(id: ID!): Product!
   productVariant(id: ID!): ProductVariant!
-  productVariants(productId: ID!, skip: Int! = 0, take: Int! = 10): [ProductVariant!]!
 
   """
   Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10
   """
   products(skip: Int! = 0, take: Int! = 10): [Product!]!
-  variantAttributeCategories(variantId: ID!): [VariantAttributeCategory!]!
 }
 
 type SignedUrlResponse {
@@ -169,7 +180,8 @@ input UpdateAttributeCategoryInput {
 }
 
 input UpdateAttributeInput {
-  value: String
+  """Human-readable label shown in the UI. Does not affect SKUs."""
+  displayName: String
 }
 
 input UpdateProductInput {
@@ -181,7 +193,6 @@ input UpdateProductInput {
 
 input UpdateProductVariantInput {
   priceCents: Int
-  sku: String
   stock: Int
 }
 

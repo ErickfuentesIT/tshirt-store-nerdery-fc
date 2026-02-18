@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -14,6 +14,7 @@ import { ProductsModule } from './modules/products/products.module.js';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { S3Module } from './common/s3/s3.module.js';
+import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter.js';
 @Module({
   imports: [
     CustomConfigModule,
@@ -46,6 +47,10 @@ import { S3Module } from './common/s3/s3.module.js';
     {
       provide: APP_GUARD,
       useClass: GqlThrottlerGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: PrismaClientExceptionFilter,
     },
   ],
 })

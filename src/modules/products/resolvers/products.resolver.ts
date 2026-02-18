@@ -1,7 +1,8 @@
 import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
 import { Product } from '../models/product.model.js';
 import { ProductsService } from '../services/products.service.js';
-import { CreateProductInput } from '../dto/create-product.input.js';
+import { CreateProductWithVariantsInput } from '../dto/create-product-with-variants.input.js';
+import { AddVariantsInput } from '../dto/add-variants.input.js';
 import { UpdateProductInput } from '../dto/update-product.input.js';
 
 @Resolver(() => Product)
@@ -14,8 +15,8 @@ export class ProductsResolver {
       'Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10',
   })
   async findAll(
-    @Args('skip', { type: () => Int, defaultValue: 0 }) skip: number, // page
-    @Args('take', { type: () => Int, defaultValue: 10 }) take: number, // range
+    @Args('skip', { type: () => Int, defaultValue: 0 }) skip: number,
+    @Args('take', { type: () => Int, defaultValue: 10 }) take: number,
   ) {
     return this.productsService.findAll(skip, take);
   }
@@ -25,9 +26,25 @@ export class ProductsResolver {
     return this.productsService.findOne(id);
   }
 
-  @Mutation(() => Product)
-  async createProduct(@Args('data') data: CreateProductInput) {
-    return this.productsService.create(data);
+  @Mutation(() => Product, {
+    description:
+      'Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute values.',
+  })
+  async createProduct(
+    @Args('data') data: CreateProductWithVariantsInput,
+  ) {
+    return this.productsService.createWithVariants(data);
+  }
+
+  @Mutation(() => Product, {
+    description:
+      'Appends new variants (with attributes and images) to an existing product. Runs in a transaction.',
+  })
+  async addVariantsToProduct(
+    @Args('productId', { type: () => ID }) productId: string,
+    @Args('data') data: AddVariantsInput,
+  ) {
+    return this.productsService.addVariants(productId, data);
   }
 
   @Mutation(() => Product)

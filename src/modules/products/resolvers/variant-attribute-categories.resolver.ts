@@ -9,15 +9,6 @@ export class VariantAttributeCategoriesResolver {
     private readonly variantAttributeCategoriesService: VariantAttributeCategoriesService,
   ) {}
 
-  @Query(() => [VariantAttributeCategory], {
-    name: 'variantAttributeCategories',
-  })
-  async findAllByVariant(
-    @Args('variantId', { type: () => ID }) variantId: string,
-  ) {
-    return this.variantAttributeCategoriesService.findAllByVariant(variantId);
-  }
-
   @Mutation(() => VariantAttributeCategory)
   async assignAttributeToVariant(
     @Args('data') data: CreateVariantAttributeCategoryInput,

@@ -10,7 +10,10 @@ export class Attribute {
   attributeCategoryId: string;
 
   @Field(() => String)
-  value: string;
+  code: string;
+
+  @Field(() => String)
+  displayName: string;
 
   @Field(() => AttributeCategory, { nullable: true })
   attributeCategory?: AttributeCategory;

@@ -10,25 +10,9 @@ export class ProductVariantsResolver {
     private readonly productVariantsService: ProductVariantsService,
   ) {}
 
-  @Query(() => [ProductVariant], { name: 'productVariants' })
-  async findAll(
-    @Args('productId', { type: () => ID }) productId: string,
-    @Args('skip', { type: () => Int, defaultValue: 0 }) skip: number,
-    @Args('take', { type: () => Int, defaultValue: 10 }) take: number,
-  ) {
-    return this.productVariantsService.findAll(productId, skip, take);
-  }
-
   @Query(() => ProductVariant, { name: 'productVariant' })
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.productVariantsService.findOne(id);
-  }
-
-  @Mutation(() => ProductVariant)
-  async createProductVariant(
-    @Args('data') data: CreateProductVariantInput,
-  ) {
-    return this.productVariantsService.create(data);
   }
 
   @Mutation(() => ProductVariant)

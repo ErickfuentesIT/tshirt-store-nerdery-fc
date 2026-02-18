@@ -12,11 +12,6 @@ export class CategoriesResolver {
     return this.categoriesService.findAll();
   }
 
-  @Query(() => Category, { name: 'category' })
-  async findOne(@Args('id', { type: () => ID }) id: string) {
-    return this.categoriesService.findOne(id);
-  }
-
   @Mutation(() => Category)
   async createCategory(@Args('data') data: CreateCategoryInput) {
     return this.categoriesService.create(data);

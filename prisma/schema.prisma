@@ -104,7 +104,7 @@ model ProductVariant {
   // Future relations (cart and orders)
   // cartItems       CartItem[]
   // orderItems      OrderItem[]
-
+  @@index([productId, isActive])
   @@map("product_variants")
 }
 
@@ -120,13 +120,13 @@ model Attribute {
   id                  String            @id @default(uuid()) @db.Uuid
   // Renamed for clarity: it is an ID pointing to a Category
   attributeCategoryId String            @map("attribute_category_id") @db.Uuid
-  value               String            @db.VarChar
-
+  code                String            @db.VarChar @unique
+  displayName         String            
   attributeCategory   AttributeCategory @relation(fields: [attributeCategoryId], references: [id])
   
   // Link to the junction table
   variantAttributes   VariantAttributeCategory[]
-
+  @@index([attributeCategoryId])
   @@map("attributes")
 }
 
@@ -139,6 +139,7 @@ model VariantAttributeCategory {
   attribute   Attribute      @relation(fields: [attributeId], references: [id])
 
   @@unique([variantId, attributeId])
+  @@index([attributeId])
   @@map("variant_attribute_categories")
 }
 

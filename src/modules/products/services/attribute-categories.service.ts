@@ -2,11 +2,26 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import Joi from 'joi';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { UpdateAttributeCategoryInput } from '../dto/update-attribute-category.input.js';
 import { InsertAttributesWithCategoryInput } from '../dto/insert-attributes-with-category.input.js';
+
+/**
+ * Converts a display name into a stable, uppercase, hyphen-separated code.
+ * This code is set once at attribute creation and never changes.
+ * SKU generation depends on this code, so renaming an attribute's displayName
+ * has zero impact on existing or future SKUs.
+ * e.g. "Crimson Red" → "CRIMSON-RED"
+ */
+function slugify(text: string): string {
+  return text
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 /**
  * Joi schema for the upsert mutation.
@@ -29,7 +44,6 @@ export class AttributeCategoriesService {
   private readonly includeRelations = {
     attributes: true,
   };
-
 
   async findAll() {
     return this.prisma.attributeCategory.findMany({
@@ -64,10 +78,8 @@ export class AttributeCategoriesService {
 
   async remove(id: string) {
     await this.findOne(id);
-
-    return this.prisma.attributeCategory.delete({
+    return await this.prisma.attributeCategory.delete({
       where: { id },
-      include: this.includeRelations,
     });
   }
 
@@ -83,7 +95,12 @@ export class AttributeCategoriesService {
     }
 
     const { attributeCategoryId, name, values } = data;
-    const attributeData = values.map((value) => ({ value }));
+    // code is derived from displayName at creation time and never changes.
+    // SKU generation depends on code, so displayName renames never affect SKUs.
+    const attributeData = values.map((displayName) => ({
+      code: slugify(displayName),
+      displayName,
+    }));
 
     return this.prisma.$transaction(async (tx) => {
       if (attributeCategoryId) {

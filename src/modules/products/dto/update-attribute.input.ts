@@ -1,10 +1,11 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
 
 @InputType()
 export class UpdateAttributeInput {
-  @Field(() => String, { nullable: true })
+  @Field(() => String, { nullable: true, description: 'Human-readable label shown in the UI. Does not affect SKUs.' })
   @IsString()
+  @IsNotEmpty()
   @IsOptional()
-  value?: string;
+  displayName?: string;
 }

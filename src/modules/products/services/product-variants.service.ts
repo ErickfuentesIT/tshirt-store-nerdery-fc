@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
-import { CreateProductVariantInput } from '../dto/create-product-variant.input.js';
 import { UpdateProductVariantInput } from '../dto/update-product-variant.input.js';
 
 @Injectable()
@@ -19,23 +18,6 @@ export class ProductVariantsService {
       },
     },
   };
-
-  async create(data: CreateProductVariantInput) {
-    return this.prisma.productVariant.create({
-      data,
-      include: this.includeRelations,
-    });
-  }
-
-  async findAll(productId: string, skip: number, take: number) {
-    return this.prisma.productVariant.findMany({
-      where: { productId, isActive: true },
-      skip,
-      take,
-      include: this.includeRelations,
-      orderBy: { updatedAt: 'desc' },
-    });
-  }
 
   async findOne(id: string) {
     const variant = await this.prisma.productVariant.findUnique({

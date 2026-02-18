@@ -11,8 +11,10 @@ import { VariantAttributeCategoriesService } from './services/variant-attribute-
 import { VariantAttributeCategoriesResolver } from './resolvers/variant-attribute-categories.resolver.js';
 import { ImagesService } from './services/images.service.js';
 import { ImagesResolver } from './resolvers/images.resolver.js';
+import { CustomConfigModule } from '../../common/config/config.module.js';
 
 @Module({
+  imports: [CustomConfigModule],
   providers: [
     ProductsService,
     ProductsResolver,

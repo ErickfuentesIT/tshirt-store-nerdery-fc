@@ -21,13 +21,6 @@ export class VariantAttributeCategoriesService {
     });
   }
 
-  async findAllByVariant(variantId: string) {
-    return this.prisma.variantAttributeCategory.findMany({
-      where: { variantId },
-      include: this.includeRelations,
-    });
-  }
-
   async findOne(id: string) {
     const record = await this.prisma.variantAttributeCategory.findUnique({
       where: { id },

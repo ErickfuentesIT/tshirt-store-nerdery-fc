@@ -7,18 +7,6 @@ import { UpdateAttributeInput } from '../dto/update-attribute.input.js';
 export class AttributesResolver {
   constructor(private readonly attributesService: AttributesService) {}
 
-  @Query(() => [Attribute], { name: 'attributes' })
-  async findAll(
-    @Args('attributeCategoryId', { type: () => ID }) attributeCategoryId: string,
-  ) {
-    return this.attributesService.findAll(attributeCategoryId);
-  }
-
-  @Query(() => Attribute, { name: 'attribute' })
-  async findOne(@Args('id', { type: () => ID }) id: string) {
-    return this.attributesService.findOne(id);
-  }
-
   @Mutation(() => Attribute)
   async updateAttribute(
     @Args('id', { type: () => ID }) id: string,
