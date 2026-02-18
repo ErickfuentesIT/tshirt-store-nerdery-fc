@@ -11,6 +11,7 @@ import { VariantAttributeCategoriesResolver } from './resolvers/variant-attribut
 import { ImagesService } from './services/images.service.js';
 import { ImagesResolver } from './resolvers/images.resolver.js';
 import { CustomConfigModule } from '../../common/config/config.module.js';
+import { CaslModule } from '../../common/casl/casl.module.js';
 import { ProductVariantsLoader } from './loaders/product-variants.loader.js';
 import { VariantAttributesLoader } from './loaders/variant-attributes.loader.js';
 import { AttributeLoader } from './loaders/attribute.loader.js';
@@ -20,7 +21,7 @@ import { ProductImagesLoader } from './loaders/product-images.loader.js';
 import { VariantImagesLoader } from './loaders/variant-images.loader.js';
 
 @Module({
-  imports: [CustomConfigModule],
+  imports: [CustomConfigModule, CaslModule],
   providers: [
     // Services
     ProductsService,

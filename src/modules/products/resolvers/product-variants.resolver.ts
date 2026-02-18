@@ -1,4 +1,9 @@
+import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard.js';
+import { PoliciesGuard } from '../../../common/guards/policies.guard.js';
+import { CheckPolicies } from '../../../common/decorators/check-policies.decorator.js';
+import { Action } from '../../../common/casl/casl.types.js';
 import { ProductVariant } from '../models/product-variant.model.js';
 import { VariantAttributeCategory } from '../models/variant-attribute-category.model.js';
 import { Image } from '../models/image.model.js';
@@ -7,6 +12,7 @@ import { UpdateProductVariantInput } from '../dto/update-product-variant.input.j
 import { VariantAttributesLoader } from '../loaders/variant-attributes.loader.js';
 import { VariantImagesLoader } from '../loaders/variant-images.loader.js';
 
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 @Resolver(() => ProductVariant)
 export class ProductVariantsResolver {
   constructor(
@@ -15,6 +21,7 @@ export class ProductVariantsResolver {
     private readonly variantImagesLoader: VariantImagesLoader,
   ) {}
 
+  @CheckPolicies((ability) => ability.can(Action.Read, ProductVariant))
   @Query(() => ProductVariant, {
     name: 'productVariant',
     description: 'Fetches a single product variant by its ID.',
@@ -23,6 +30,7 @@ export class ProductVariantsResolver {
     return this.productVariantsService.findOne(id);
   }
 
+  @CheckPolicies((ability) => ability.can(Action.Update, ProductVariant))
   @Mutation(() => ProductVariant, {
     description:
       'Updates a variant\'s stock or price. The SKU is immutable and cannot be changed — it is generated once at creation time from the product name and attribute codes.',
@@ -34,6 +42,7 @@ export class ProductVariantsResolver {
     return this.productVariantsService.update(id, data);
   }
 
+  @CheckPolicies((ability) => ability.can(Action.Delete, ProductVariant))
   @Mutation(() => ProductVariant, {
     description:
       'Soft-deletes a variant by setting isActive to false. Use this to retire a variant with incorrect attributes before adding the correct replacement via addVariantsToProduct.',

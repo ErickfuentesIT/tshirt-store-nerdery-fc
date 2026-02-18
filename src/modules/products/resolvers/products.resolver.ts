@@ -1,4 +1,9 @@
+import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args, ID, Int, ResolveField, Parent } from '@nestjs/graphql';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard.js';
+import { PoliciesGuard } from '../../../common/guards/policies.guard.js';
+import { CheckPolicies } from '../../../common/decorators/check-policies.decorator.js';
+import { Action } from '../../../common/casl/casl.types.js';
 import { Product } from '../models/product.model.js';
 import { ProductVariant } from '../models/product-variant.model.js';
 import { Image } from '../models/image.model.js';
@@ -40,6 +45,8 @@ export class ProductsResolver {
     return this.productsService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Create, Product))
   @Mutation(() => Product, {
     description:
       'Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute codes.',
@@ -48,6 +55,8 @@ export class ProductsResolver {
     return this.productsService.createWithVariants(data);
   }
 
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Create, Product))
   @Mutation(() => Product, {
     description:
       'Appends new variants (with attributes and images) to an existing product. Runs in a transaction.',
@@ -59,6 +68,8 @@ export class ProductsResolver {
     return this.productsService.addVariants(productId, data);
   }
 
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Update, Product))
   @Mutation(() => Product, {
     description:
       'Updates a product\'s name, description, basePrice, or category. Only the provided fields are changed. Existing variant SKUs are not affected.',
@@ -70,6 +81,8 @@ export class ProductsResolver {
     return this.productsService.update(id, data);
   }
 
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Delete, Product))
   @Mutation(() => Product, {
     description:
       'Soft-deletes a product by setting isActive to false. The product and its variants are hidden from listings but preserved in the database for historical integrity.',
