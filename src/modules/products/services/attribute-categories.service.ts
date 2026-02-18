@@ -4,38 +4,10 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import Joi from 'joi';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { UpdateAttributeCategoryInput } from '../dto/update-attribute-category.input.js';
 import { InsertAttributesWithCategoryInput } from '../dto/insert-attributes-with-category.input.js';
-
-/**
- * Converts a display name into a stable, uppercase, hyphen-separated code.
- * This code is set once at attribute creation and never changes.
- * SKU generation depends on this code, so renaming an attribute's displayName
- * has zero impact on existing or future SKUs.
- * e.g. "Crimson Red" → "CRIMSON-RED"
- */
-function slugify(text: string): string {
-  return text
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-/**
- * Joi schema for the upsert mutation.
- *
- * - `values` must be a non-empty array of non-empty strings.
- * - Exactly ONE of `attributeCategoryId` (Case B) or `name` (Case A) must be provided.
- *
- * .xor() ensures mutual exclusivity: providing both or neither is rejected.
- */
-const upsertSchema = Joi.object({
-  attributeCategoryId: Joi.string().uuid(),
-  name: Joi.string().min(1),
-  values: Joi.array().items(Joi.string().min(1)).min(1).required(),
-}).xor('attributeCategoryId', 'name');
+import { slugify } from '../helper/slugify.helper.js';
 
 @Injectable()
 export class AttributeCategoriesService {
@@ -89,12 +61,18 @@ export class AttributeCategoriesService {
    * Case B (append to existing): provide `attributeCategoryId` + `values` → appends child Attributes.
    */
   async insertAttributesWithCategory(data: InsertAttributesWithCategoryInput) {
-    const { error } = upsertSchema.validate(data);
-    if (error) {
-      throw new BadRequestException(error.message);
-    }
-
     const { attributeCategoryId, name, values } = data;
+
+    if (!attributeCategoryId && !name) {
+      throw new BadRequestException(
+        'Provide either name (Case A: new category) or attributeCategoryId (Case B: existing category).',
+      );
+    }
+    if (attributeCategoryId && name) {
+      throw new BadRequestException(
+        'Provide either name or attributeCategoryId, not both.',
+      );
+    }
     // code is derived from displayName at creation time and never changes.
     // SKU generation depends on code, so displayName renames never affect SKUs.
     const attributeData = values.map((displayName) => ({
