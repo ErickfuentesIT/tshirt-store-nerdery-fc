@@ -13,6 +13,7 @@ import { SerializeInterceptor } from './common/interceptors/serialize.intercepto
 import { ProductsModule } from './modules/products/products.module.js';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { CategoriesModule } from './modules/categories/categories.module.js';
+import { LikesModule } from './modules/likes/likes.module.js';
 import { S3Module } from './common/s3/s3.module.js';
 import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter.js';
 @Module({
@@ -38,6 +39,7 @@ import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.f
     AuthModule,
     ProductsModule,
     CategoriesModule,
+    LikesModule,
   ],
   providers: [
     {

@@ -83,6 +83,13 @@ input InsertAttributesWithCategoryInput {
   values: [String!]!
 }
 
+type Like {
+  createdAt: DateTime!
+  id: ID!
+  productVariantId: String!
+  userId: String!
+}
+
 type Mutation {
   """
   Appends new variants (with attributes and images) to an existing product. Runs in a transaction.
@@ -139,6 +146,12 @@ type Mutation {
   Generates a pre-signed URL for uploading an image to S3. The client should use this URL to PUT the file directly to S3. Allowed ContentType: image/png, image/jpeg, image/webp
   """
   getSignedUrl(data: GetSignedUrlInput!): SignedUrlResponse!
+
+  """Likes a product variant. A client can only like a given variant once."""
+  likeVariant(productVariantId: ID!): Like!
+
+  """Removes a like from a product variant."""
+  unlikeVariant(productVariantId: ID!): Like!
 
   """
   Updates the displayName of an attribute. The code field is immutable and cannot be changed — it is generated once at creation time and is baked into all existing SKUs.
@@ -200,6 +213,11 @@ type Query {
 
   """Returns all product categories."""
   categories: [Category!]!
+
+  """
+  Returns all product variants liked by the currently authenticated client.
+  """
+  myLikes: [Like!]!
 
   """Fetches a single active product by its ID."""
   product(id: ID!): Product!

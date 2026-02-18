@@ -5,6 +5,7 @@ import { Category } from '../../modules/categories/models/category.model.js';
 import { AttributeCategory } from '../../modules/products/models/attribute-category.model.js';
 import { Attribute } from '../../modules/products/models/attribute.model.js';
 import { Image } from '../../modules/products/models/image.model.js';
+import { Like } from '../../modules/likes/models/like.model.js';
 
 export enum Action {
   Manage = 'manage',
@@ -21,6 +22,7 @@ export type Subjects = InferSubjects<
   | typeof AttributeCategory
   | typeof Attribute
   | typeof Image
+  | typeof Like
 > | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;
