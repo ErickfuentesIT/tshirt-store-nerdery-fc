@@ -32,7 +32,10 @@ export class ProductsResolver {
     return this.productsService.findAll(skip, take);
   }
 
-  @Query(() => Product, { name: 'product' })
+  @Query(() => Product, {
+    name: 'product',
+    description: 'Fetches a single active product by its ID.',
+  })
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.productsService.findOne(id);
   }
@@ -56,7 +59,10 @@ export class ProductsResolver {
     return this.productsService.addVariants(productId, data);
   }
 
-  @Mutation(() => Product)
+  @Mutation(() => Product, {
+    description:
+      'Updates a product\'s name, description, basePrice, or category. Only the provided fields are changed. Existing variant SKUs are not affected.',
+  })
   async updateProduct(
     @Args('id', { type: () => ID }) id: string,
     @Args('data') data: UpdateProductInput,
@@ -64,7 +70,10 @@ export class ProductsResolver {
     return this.productsService.update(id, data);
   }
 
-  @Mutation(() => Product)
+  @Mutation(() => Product, {
+    description:
+      'Soft-deletes a product by setting isActive to false. The product and its variants are hidden from listings but preserved in the database for historical integrity.',
+  })
   async disableProduct(@Args('id', { type: () => ID }) id: string) {
     return this.productsService.disable(id);
   }

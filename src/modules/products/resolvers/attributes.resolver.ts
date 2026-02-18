@@ -12,7 +12,10 @@ export class AttributesResolver {
     private readonly attributeCategoryLoader: AttributeCategoryLoader,
   ) {}
 
-  @Mutation(() => Attribute)
+  @Mutation(() => Attribute, {
+    description:
+      'Updates the displayName of an attribute. The code field is immutable and cannot be changed — it is generated once at creation time and is baked into all existing SKUs.',
+  })
   async updateAttribute(
     @Args('id', { type: () => ID }) id: string,
     @Args('data') data: UpdateAttributeInput,
@@ -20,7 +23,10 @@ export class AttributesResolver {
     return this.attributesService.update(id, data);
   }
 
-  @Mutation(() => Attribute)
+  @Mutation(() => Attribute, {
+    description:
+      'Permanently deletes an attribute. Blocked if the attribute is currently assigned to any product variant — disable the affected variants first.',
+  })
   async deleteAttribute(@Args('id', { type: () => ID }) id: string) {
     return this.attributesService.remove(id);
   }

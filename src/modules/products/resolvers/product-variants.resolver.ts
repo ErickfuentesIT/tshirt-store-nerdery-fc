@@ -15,12 +15,18 @@ export class ProductVariantsResolver {
     private readonly variantImagesLoader: VariantImagesLoader,
   ) {}
 
-  @Query(() => ProductVariant, { name: 'productVariant' })
+  @Query(() => ProductVariant, {
+    name: 'productVariant',
+    description: 'Fetches a single product variant by its ID.',
+  })
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.productVariantsService.findOne(id);
   }
 
-  @Mutation(() => ProductVariant)
+  @Mutation(() => ProductVariant, {
+    description:
+      'Updates a variant\'s stock or price. The SKU is immutable and cannot be changed — it is generated once at creation time from the product name and attribute codes.',
+  })
   async updateProductVariant(
     @Args('id', { type: () => ID }) id: string,
     @Args('data') data: UpdateProductVariantInput,
@@ -28,7 +34,10 @@ export class ProductVariantsResolver {
     return this.productVariantsService.update(id, data);
   }
 
-  @Mutation(() => ProductVariant)
+  @Mutation(() => ProductVariant, {
+    description:
+      'Soft-deletes a variant by setting isActive to false. Use this to retire a variant with incorrect attributes before adding the correct replacement via addVariantsToProduct.',
+  })
   async disableProductVariant(@Args('id', { type: () => ID }) id: string) {
     return this.productVariantsService.disable(id);
   }

@@ -93,6 +93,8 @@ type Mutation {
   Creates a new attribute category with its attributes (Case A: provide name + values), or appends attributes to an existing category (Case B: provide attributeCategoryId + values). Runs in a transaction.
   """
   createAttributesWithCategory(data: InsertAttributesWithCategoryInput!): AttributeCategory!
+
+  """Creates a new product category."""
   createCategory(data: CreateCategoryInput!): Category!
 
   """
@@ -104,23 +106,59 @@ type Mutation {
   Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute codes.
   """
   createProduct(data: CreateProductWithVariantsInput!): Product!
+
+  """
+  Permanently deletes an attribute. Blocked if the attribute is currently assigned to any product variant — disable the affected variants first.
+  """
   deleteAttribute(id: ID!): Attribute!
+
+  """
+  Permanently deletes an attribute category. Blocked if any of its attributes are assigned to product variants — disable the affected variants first.
+  """
   deleteAttributeCategory(id: ID!): AttributeCategory!
+
+  """
+  Permanently deletes a category. Blocked if any products are currently assigned to it — reassign or disable those products first.
+  """
   deleteCategory(id: ID!): Category!
 
   """Deletes an image from both S3 and the database."""
   deleteImage(id: ID!): Image!
+
+  """
+  Soft-deletes a product by setting isActive to false. The product and its variants are hidden from listings but preserved in the database for historical integrity.
+  """
   disableProduct(id: ID!): Product!
+
+  """
+  Soft-deletes a variant by setting isActive to false. Use this to retire a variant with incorrect attributes before adding the correct replacement via addVariantsToProduct.
+  """
   disableProductVariant(id: ID!): ProductVariant!
 
   """
   Generates a pre-signed URL for uploading an image to S3. The client should use this URL to PUT the file directly to S3. Allowed ContentType: image/png, image/jpeg, image/webp
   """
   getSignedUrl(data: GetSignedUrlInput!): SignedUrlResponse!
+
+  """
+  Updates the displayName of an attribute. The code field is immutable and cannot be changed — it is generated once at creation time and is baked into all existing SKUs.
+  """
   updateAttribute(data: UpdateAttributeInput!, id: ID!): Attribute!
+
+  """Updates the name of an attribute category."""
   updateAttributeCategory(data: UpdateAttributeCategoryInput!, id: ID!): AttributeCategory!
+
+  """Updates a product category name."""
   updateCategory(data: CreateCategoryInput!, id: ID!): Category!
+
+  """
+  Updates a product's name, description, basePrice, or category. Only the provided fields are changed. Existing variant SKUs are not affected.
+  """
   updateProduct(data: UpdateProductInput!, id: ID!): Product!
+
+  """
+  Updates a variant's stock or price. The SKU is immutable and cannot be changed — it is generated once at creation time from the product name and attribute codes.
+  """
   updateProductVariant(data: UpdateProductVariantInput!, id: ID!): ProductVariant!
 }
 
@@ -150,10 +188,23 @@ type ProductVariant {
 }
 
 type Query {
+  """
+  Returns all attribute categories (e.g. Color, Size) along with their nested attributes.
+  """
   attributeCategories: [AttributeCategory!]!
+
+  """
+  Fetches a single attribute category by its ID, including its nested attributes.
+  """
   attributeCategory(id: ID!): AttributeCategory!
+
+  """Returns all product categories."""
   categories: [Category!]!
+
+  """Fetches a single active product by its ID."""
   product(id: ID!): Product!
+
+  """Fetches a single product variant by its ID."""
   productVariant(id: ID!): ProductVariant!
 
   """

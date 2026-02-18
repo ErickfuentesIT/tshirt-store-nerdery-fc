@@ -10,17 +10,25 @@ export class AttributeCategoriesResolver {
     private readonly attributeCategoriesService: AttributeCategoriesService,
   ) {}
 
-  @Query(() => [AttributeCategory], { name: 'attributeCategories' })
+  @Query(() => [AttributeCategory], {
+    name: 'attributeCategories',
+    description: 'Returns all attribute categories (e.g. Color, Size) along with their nested attributes.',
+  })
   async findAll() {
     return this.attributeCategoriesService.findAll();
   }
 
-  @Query(() => AttributeCategory, { name: 'attributeCategory' })
+  @Query(() => AttributeCategory, {
+    name: 'attributeCategory',
+    description: 'Fetches a single attribute category by its ID, including its nested attributes.',
+  })
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.attributeCategoriesService.findOne(id);
   }
 
-  @Mutation(() => AttributeCategory)
+  @Mutation(() => AttributeCategory, {
+    description: 'Updates the name of an attribute category.',
+  })
   async updateAttributeCategory(
     @Args('id', { type: () => ID }) id: string,
     @Args('data') data: UpdateAttributeCategoryInput,
@@ -28,7 +36,10 @@ export class AttributeCategoriesResolver {
     return this.attributeCategoriesService.update(id, data);
   }
 
-  @Mutation(() => AttributeCategory)
+  @Mutation(() => AttributeCategory, {
+    description:
+      'Permanently deletes an attribute category. Blocked if any of its attributes are assigned to product variants — disable the affected variants first.',
+  })
   async deleteAttributeCategory(@Args('id', { type: () => ID }) id: string) {
     return this.attributeCategoriesService.remove(id);
   }
