@@ -44,11 +44,6 @@ input CreateProductWithVariantsInput {
   variants: [CreateVariantInput!]!
 }
 
-input CreateVariantAttributeCategoryInput {
-  attributeId: String!
-  variantId: String!
-}
-
 input CreateVariantInput {
   """Attribute IDs (values like "Red", "S") to assign to this variant."""
   attributeValueIds: [String!]!
@@ -93,7 +88,6 @@ type Mutation {
   Appends new variants (with attributes and images) to an existing product. Runs in a transaction.
   """
   addVariantsToProduct(data: AddVariantsInput!, productId: ID!): Product!
-  assignAttributeToVariant(data: CreateVariantAttributeCategoryInput!): VariantAttributeCategory!
 
   """
   Creates a new attribute category with its attributes (Case A: provide name + values), or appends attributes to an existing category (Case B: provide attributeCategoryId + values). Runs in a transaction.
@@ -107,7 +101,7 @@ type Mutation {
   createImage(data: CreateImageInput!): Image!
 
   """
-  Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute values.
+  Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute codes.
   """
   createProduct(data: CreateProductWithVariantsInput!): Product!
   deleteAttribute(id: ID!): Attribute!
@@ -123,7 +117,6 @@ type Mutation {
   Generates a pre-signed URL for uploading an image to S3. The client should use this URL to PUT the file directly to S3. Allowed ContentType: image/png, image/jpeg, image/webp
   """
   getSignedUrl(data: GetSignedUrlInput!): SignedUrlResponse!
-  removeAttributeFromVariant(id: ID!): VariantAttributeCategory!
   updateAttribute(data: UpdateAttributeInput!, id: ID!): Attribute!
   updateAttributeCategory(data: UpdateAttributeCategoryInput!, id: ID!): AttributeCategory!
   updateCategory(data: CreateCategoryInput!, id: ID!): Category!

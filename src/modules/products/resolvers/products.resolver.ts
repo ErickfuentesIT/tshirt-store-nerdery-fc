@@ -1,13 +1,24 @@
-import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Int, ResolveField, Parent } from '@nestjs/graphql';
 import { Product } from '../models/product.model.js';
+import { ProductVariant } from '../models/product-variant.model.js';
+import { Image } from '../models/image.model.js';
+import { Category } from '../../categories/models/category.model.js';
 import { ProductsService } from '../services/products.service.js';
 import { CreateProductWithVariantsInput } from '../dto/create-product-with-variants.input.js';
 import { AddVariantsInput } from '../dto/add-variants.input.js';
 import { UpdateProductInput } from '../dto/update-product.input.js';
+import { ProductVariantsLoader } from '../loaders/product-variants.loader.js';
+import { CategoryLoader } from '../loaders/category.loader.js';
+import { ProductImagesLoader } from '../loaders/product-images.loader.js';
 
 @Resolver(() => Product)
 export class ProductsResolver {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly productVariantsLoader: ProductVariantsLoader,
+    private readonly categoryLoader: CategoryLoader,
+    private readonly productImagesLoader: ProductImagesLoader,
+  ) {}
 
   @Query(() => [Product], {
     name: 'products',
@@ -28,11 +39,9 @@ export class ProductsResolver {
 
   @Mutation(() => Product, {
     description:
-      'Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute values.',
+      'Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute codes.',
   })
-  async createProduct(
-    @Args('data') data: CreateProductWithVariantsInput,
-  ) {
+  async createProduct(@Args('data') data: CreateProductWithVariantsInput) {
     return this.productsService.createWithVariants(data);
   }
 
@@ -58,5 +67,22 @@ export class ProductsResolver {
   @Mutation(() => Product)
   async disableProduct(@Args('id', { type: () => ID }) id: string) {
     return this.productsService.disable(id);
+  }
+
+  // ── Field resolvers ────────────────────────────────────────────────────────
+
+  @ResolveField(() => [ProductVariant], { nullable: true })
+  async variants(@Parent() product: Product) {
+    return this.productVariantsLoader.loader.load(product.id);
+  }
+
+  @ResolveField(() => Category, { nullable: true })
+  async category(@Parent() product: Product & { categoryId: string }) {
+    return this.categoryLoader.loader.load(product.categoryId);
+  }
+
+  @ResolveField(() => [Image], { nullable: true })
+  async images(@Parent() product: Product) {
+    return this.productImagesLoader.loader.load(product.id);
   }
 }

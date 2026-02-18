@@ -6,23 +6,9 @@ import { UpdateProductVariantInput } from '../dto/update-product-variant.input.j
 export class ProductVariantsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly includeRelations = {
-    images: true,
-    variantAttributes: {
-      include: {
-        attribute: {
-          include: {
-            attributeCategory: true,
-          },
-        },
-      },
-    },
-  };
-
   async findOne(id: string) {
     const variant = await this.prisma.productVariant.findUnique({
       where: { id },
-      include: this.includeRelations,
     });
 
     if (!variant) {
@@ -38,7 +24,6 @@ export class ProductVariantsService {
     return this.prisma.productVariant.update({
       where: { id },
       data,
-      include: this.includeRelations,
     });
   }
 
@@ -48,7 +33,6 @@ export class ProductVariantsService {
     return this.prisma.productVariant.update({
       where: { id },
       data: { isActive: false },
-      include: this.includeRelations,
     });
   }
 }

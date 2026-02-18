@@ -6,14 +6,9 @@ import { UpdateAttributeInput } from '../dto/update-attribute.input.js';
 export class AttributesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly includeRelations = {
-    attributeCategory: true,
-  };
-
   async findOne(id: string) {
     const attribute = await this.prisma.attribute.findUnique({
       where: { id },
-      include: this.includeRelations,
     });
 
     if (!attribute) {
@@ -29,7 +24,6 @@ export class AttributesService {
     return this.prisma.attribute.update({
       where: { id },
       data,
-      include: this.includeRelations,
     });
   }
 
@@ -48,7 +42,6 @@ export class AttributesService {
 
     return this.prisma.attribute.delete({
       where: { id },
-      include: this.includeRelations,
     });
   }
 }

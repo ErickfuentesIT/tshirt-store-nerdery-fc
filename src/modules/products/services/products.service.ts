@@ -70,31 +70,6 @@ export class ProductsService {
     this.bucketUrl = `https://${s3BucketName}.s3.${region}.amazonaws.com`;
   }
 
-  private readonly includeRelations = {
-    category: true,
-    variants: true,
-    images: true,
-  };
-
-  /** Deep include for the full product response with nested variant relations. */
-  private readonly deepInclude = {
-    category: true,
-    images: true,
-    variants: {
-      include: {
-        images: true,
-        variantAttributes: {
-          include: {
-            attribute: {
-              include: {
-                attributeCategory: true,
-              },
-            },
-          },
-        },
-      },
-    },
-  };
 
   async createWithVariants(data: CreateProductWithVariantsInput) {
     return this.prisma.$transaction(async (tx) => {
@@ -197,11 +172,8 @@ export class ProductsService {
         }
       }
 
-      // 5. Return the full product with all nested relations
-      return tx.product.findUnique({
-        where: { id: product.id },
-        include: this.deepInclude,
-      });
+      // 5. Return the product — field resolvers handle all nested relations
+      return product;
     });
   }
 
@@ -289,11 +261,8 @@ export class ProductsService {
       }
     }
 
-    // 8. Return the product with its NEWLY expanded list of variants
-    return tx.product.findUnique({
-      where: { id: productId },
-      include: this.deepInclude,
-    });
+    // 8. Return the product — field resolvers handle all nested relations
+    return product;
   });
 }
 
@@ -303,7 +272,6 @@ export class ProductsService {
       where: { isActive: true },
       skip,
       take,
-      include: this.deepInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -311,7 +279,6 @@ export class ProductsService {
   async findOne(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: this.deepInclude,
     });
 
     if (!product) {
@@ -327,7 +294,6 @@ export class ProductsService {
     return this.prisma.product.update({
       where: { id },
       data,
-      include: this.deepInclude,
     });
   }
 
@@ -337,7 +303,6 @@ export class ProductsService {
     return this.prisma.product.update({
       where: { id },
       data: { isActive: false },
-      include: this.deepInclude,
     });
   }
 }

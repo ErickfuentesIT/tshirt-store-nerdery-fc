@@ -1,25 +1,19 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, ResolveField, Parent } from '@nestjs/graphql';
 import { VariantAttributeCategory } from '../models/variant-attribute-category.model.js';
-import { VariantAttributeCategoriesService } from '../services/variant-attribute-categories.service.js';
-import { CreateVariantAttributeCategoryInput } from '../dto/create-variant-attribute-category.input.js';
+import { Attribute } from '../models/attribute.model.js';
+import { AttributeLoader } from '../loaders/attribute.loader.js';
 
+/**
+ * Field-resolver only. No mutations — variant attributes are immutable once
+ * set at variant creation time. Changing attributes requires disabling the
+ * variant and creating a new one with the correct attribute set.
+ */
 @Resolver(() => VariantAttributeCategory)
 export class VariantAttributeCategoriesResolver {
-  constructor(
-    private readonly variantAttributeCategoriesService: VariantAttributeCategoriesService,
-  ) {}
+  constructor(private readonly attributeLoader: AttributeLoader) {}
 
-  @Mutation(() => VariantAttributeCategory)
-  async assignAttributeToVariant(
-    @Args('data') data: CreateVariantAttributeCategoryInput,
-  ) {
-    return this.variantAttributeCategoriesService.create(data);
-  }
-
-  @Mutation(() => VariantAttributeCategory)
-  async removeAttributeFromVariant(
-    @Args('id', { type: () => ID }) id: string,
-  ) {
-    return this.variantAttributeCategoriesService.remove(id);
+  @ResolveField(() => Attribute, { nullable: true })
+  async attribute(@Parent() vac: VariantAttributeCategory & { attributeId: string }) {
+    return this.attributeLoader.loader.load(vac.attributeId);
   }
 }
