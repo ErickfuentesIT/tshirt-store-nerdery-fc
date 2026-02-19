@@ -25,12 +25,32 @@ enum TokenType {
   password_reset
 }
 
+enum PaymentMethodType {
+  payment_link
+  payment_intent
+}
+
+enum OrderState {
+  pending
+  paid
+  processing
+  cancelled
+  shipped
+  delivered
+}
+
+enum PaymentStatus {
+  processing
+  succeeded
+  failed
+  refunded  // Not implemented
+}
+
 // ******** MODELS ********
 
 model User {
   id           String    @id @default(uuid()) @db.Uuid
   username     String
-  phoneNumber  String    @map("phone_number")
   email        String    @unique
   passwordHash String    @map("password_hash")
   role         UserRole  @default(client)
@@ -39,11 +59,12 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  jwtTokens    JwtToken[]
-  likes        Like[]
-  cartItems       CartItem[]
-
-  // ADDING MORE WHEN BUILDING THOSE FEATURES
+  jwtTokens         JwtToken[]
+  likes             Like[]
+  cartItems         CartItem[]
+  orders            Order[]           @relation("CustomerOrders")
+  deliveries        Order[]           @relation("DeliveryOrders")
+  shippingAddresses ShippingAddress[]
 
   @@map("users")
 }
@@ -90,11 +111,16 @@ model Product {
 
 model ProductVariant {
   id                 String   @id @default(uuid()) @db.Uuid
-  productId          String   @db.Uuid @map("product_id")
+  stripeProductId      String?  @unique @map("stripe_product_id")
+  productId            String   @db.Uuid @map("product_id")
+  stripePriceId        String?  @unique @map("stripe_price_id")
+  stripePaymentLinkId  String?  @unique @map("stripe_payment_link_id")
+  stripePaymentLinkUrl String?  @map("stripe_payment_link_url")
   sku                String   @unique @db.VarChar
   stock              Int
   priceCents         Int      @map("price_cents")
   isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   product            Product  @relation(fields: [productId], references: [id])
@@ -103,8 +129,7 @@ model ProductVariant {
   variantAttributes VariantAttributeCategory[]
   likes       Like[]
   cartItems       CartItem[]
-  // Future relations (cart and orders)
-  // orderItems      OrderItem[]
+  orderItems      OrderItem[]
   @@index([productId, isActive])
   @@map("product_variants")
 }
@@ -119,7 +144,6 @@ model AttributeCategory {
 
 model Attribute {
   id                  String            @id @default(uuid()) @db.Uuid
-  // Renamed for clarity: it is an ID pointing to a Category
   attributeCategoryId String            @map("attribute_category_id") @db.Uuid
   code                String            @db.VarChar @unique
   displayName         String            
@@ -184,4 +208,106 @@ model CartItem {
 
   @@unique([userId, productVariantId])
   @@map("cart_items")
+}
+
+model Order {
+  id                         String             @id @default(uuid()) @db.Uuid
+  
+  // User/Guest Identity
+  userId                     String?            @db.Uuid @map("user_id")
+  guestEmail                String?             @map("guest_email")
+  
+  // Logistics
+  assignedDeliveryId       String?             @db.Uuid @map("assigned_delivery_id")
+  shippingAddressId        String?             @db.Uuid @map("shipping_address_id")
+  
+  // Stripe Tracking
+  stripePaymentIntentId   String?           @unique @map("stripe_payment_intent_id")
+  stripeCheckoutSessionId String?           @unique @map("stripe_checkout_session_id")
+  paymentMethodType       PaymentMethodType @map("payment_method_type")
+
+  // Financials
+  totalAmountCents    Int @map("total_amount_cents")
+  discountAmountCents Int @map("discount_amount_cents") @default(0)
+  currentStatus           OrderState   @default(pending) @map("current_status")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations - Internal to this cluster
+  shippingAddress            ShippingAddress?   @relation(fields: [shippingAddressId], references: [id])
+  items                      OrderItem[]
+  payments                   Payment[]
+  statuses                   OrderStatus[]      // The event-sourcing timeline
+
+  // Relations - External (Requires the User model)
+  user                       User?              @relation("CustomerOrders", fields: [userId], references: [id])
+  deliveryPerson            User?              @relation("DeliveryOrders", fields: [assignedDeliveryId], references: [id])
+
+  @@map("orders")
+}
+
+model OrderStatus {
+  id        String     @id @default(uuid()) @db.Uuid
+  orderId   String     @db.Uuid @map("order_id")
+  status    OrderState
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_statuses")
+}
+
+model OrderItem {
+  id                   String   @id @default(uuid()) @db.Uuid
+  orderId              String   @db.Uuid @map("order_id")
+  variantId            String   @db.Uuid @map("variant_id")
+  quantity             Int
+  priceAtPurchaseCents Int      @map("price_at_purchase_cents")
+  discountAmountCents  Int?     @map("discount_amount_cents")
+
+  // Relations
+  order                Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant              ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id                        String        @id @default(uuid()) @db.Uuid
+  stripePaymentAttemptId    String?       @map("stripe_payment_attempt_id")
+  orderId                   String        @db.Uuid @map("order_id")
+  amountCents               Int           @map("amount_cents")
+  status                    PaymentStatus
+  currency                  String        @db.VarChar(3)
+  createdAt                 DateTime      @default(now()) @map("created_at")
+  updatedAt                 DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model ShippingAddress {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String?  @db.Uuid @map("user_id")
+  recipientName         String   @map("recipient_name")
+  phoneNumber           String   @map("phone_number")
+  label                 String?  // e.g., 'Home', 'Office'
+  street                String
+  city                  String
+  state                 String
+  country               String
+  additionalDescription String?  @map("additional_description")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders                Order[]
+
+  @@map("shipping_addresses")
 }
