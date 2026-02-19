@@ -41,6 +41,8 @@ model User {
   // Relations
   jwtTokens    JwtToken[]
   likes        Like[]
+  cartItems       CartItem[]
+
   // ADDING MORE WHEN BUILDING THOSE FEATURES
 
   @@map("users")
@@ -100,8 +102,8 @@ model ProductVariant {
   
   variantAttributes VariantAttributeCategory[]
   likes       Like[]
+  cartItems       CartItem[]
   // Future relations (cart and orders)
-  // cartItems       CartItem[]
   // orderItems      OrderItem[]
   @@index([productId, isActive])
   @@map("product_variants")
@@ -167,4 +169,19 @@ model Like {
 
   @@map("likes")
   @@unique([userId, productVariantId]) 
+}
+
+model CartItem {
+  id                String      @id @default(uuid()) @db.Uuid
+  quantity          Int         @default(1)
+  userId            String      @db.Uuid @map("user_id")
+  productVariantId  String      @db.Uuid @map("product_variant_id")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  user              User        @relation(fields: [userId], references: [id])
+  productVariant    ProductVariant   @relation(fields: [productVariantId], references: [id])
+
+  @@unique([userId, productVariantId])
+  @@map("cart_items")
 }

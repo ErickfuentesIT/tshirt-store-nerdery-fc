@@ -6,6 +6,7 @@ import { AttributeCategory } from '../../modules/products/models/attribute-categ
 import { Attribute } from '../../modules/products/models/attribute.model.js';
 import { Image } from '../../modules/products/models/image.model.js';
 import { Like } from '../../modules/likes/models/like.model.js';
+import { CartItem } from '../../modules/cart/models/cart-item.model.js';
 
 export enum Action {
   Manage = 'manage',
@@ -23,6 +24,7 @@ export type Subjects = InferSubjects<
   | typeof Attribute
   | typeof Image
   | typeof Like
+  | typeof CartItem
 > | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;
