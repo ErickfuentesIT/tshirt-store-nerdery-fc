@@ -4,20 +4,25 @@ import {
   IsString,
   IsStrongPassword,
 } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserRequestDto {
+  @ApiProperty({ example: 'johndoe' })
   @IsString()
   @IsNotEmpty()
   username: string;
 
+  @ApiProperty({ example: '+1234567890' })
   @IsString()
   @IsNotEmpty()
   phoneNumber: string;
 
+  @ApiProperty({ example: 'john@example.com' })
   @IsEmail()
   @IsNotEmpty()
   email: string;
 
+  @ApiProperty({ example: 'Str0ng!Pass' })
   @IsStrongPassword(
     {
       minLength: 8,
