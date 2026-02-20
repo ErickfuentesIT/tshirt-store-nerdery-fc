@@ -14,6 +14,14 @@ input AddVariantsInput {
   variants: [CreateVariantInput!]!
 }
 
+input AssignDeliveryInput {
+  """UUID of the delivery person to assign."""
+  assignedDeliveryId: ID!
+
+  """UUIDs of the paid orders to assign and mark as processing."""
+  orderIds: [ID!]!
+}
+
 type Attribute {
   attributeCategory: AttributeCategory
   attributeCategoryId: String!
@@ -148,6 +156,11 @@ type Mutation {
   addVariantsToProduct(data: AddVariantsInput!, productId: ID!): Product!
 
   """
+  Cancels the authenticated client's own order. Only orders in pending, paid, or processing status can be cancelled — shipped, delivered, and already-cancelled orders are rejected.
+  """
+  cancelMyOrder(orderId: ID!): Order!
+
+  """
   Hard-deletes all items from the authenticated client's cart. Returns the number of deleted items.
   """
   clearCart: Int!
@@ -219,6 +232,21 @@ type Mutation {
   """Likes a product variant. A client can only like a given variant once."""
   likeVariant(productVariantId: ID!): Like!
 
+  """
+  Marks a shipped order as delivered. The order must be assigned to the authenticated delivery person and currently in shipped status. Restricted to delivery role.
+  """
+  markOrderAsDelivered(orderId: ID!): Order!
+
+  """
+  Advances a single order from processing to shipped. The order must be in processing status — any other state is rejected with an explanation of why the transition is invalid. Restricted to managers.
+  """
+  markOrderAsShipped(orderId: ID!): Order!
+
+  """
+  Assigns a delivery driver to a batch of paid orders and advances their status to processing. All orders must currently be in paid status — if any are not, the entire batch is rejected. Restricted to managers.
+  """
+  markOrdersAsProcessing(data: AssignDeliveryInput!): Int!
+
   """Hard-deletes a product variant from the authenticated client's cart."""
   removeItemFromCart(productVariantId: ID!): CartItem!
 
@@ -257,7 +285,31 @@ type Mutation {
   updateShippingAddress(data: UpdateShippingAddressInput!): ShippingAddress!
 }
 
+input MyOrdersFilterInput {
+  """Return orders created on or after this date."""
+  fromDate: DateTime
+
+  """Maximum number of orders to return."""
+  limit: Int = 10
+
+  """Maximum order total in cents (inclusive)."""
+  maxAmountCents: Int
+
+  """Minimum order total in cents (inclusive)."""
+  minAmountCents: Int
+
+  """Number of orders to skip."""
+  offset: Int = 0
+
+  """Filter by a specific order status."""
+  status: OrderState
+
+  """Return orders created on or before this date."""
+  toDate: DateTime
+}
+
 type Order {
+  assignedDeliveryId: String
   createdAt: DateTime!
   currentStatus: OrderState!
 
@@ -265,12 +317,36 @@ type Order {
   discountAmountCents: Int!
   guestEmail: String
   id: ID!
+
+  """Line items included in this order."""
+  items: [OrderItem!]
   paymentMethodType: PaymentMethodType!
+
+  """Payment attempts associated with this order."""
+  payments: [Payment!]
+  shippingAddress: ShippingAddress
+  shippingAddressId: String
+
+  """Full status transition history for this order."""
+  statuses: [OrderStatus!]
 
   """Order total in cents."""
   totalAmountCents: Int!
   updatedAt: DateTime!
   userId: String
+}
+
+type OrderItem {
+  """Item-level discount in cents, if any."""
+  discountAmountCents: Int
+  id: ID!
+  orderId: String!
+
+  """Unit price at time of purchase, in cents."""
+  priceAtPurchaseCents: Int!
+  quantity: Int!
+  variant: ProductVariant
+  variantId: String!
 }
 
 """The lifecycle state of an order."""
@@ -283,10 +359,39 @@ enum OrderState {
   shipped
 }
 
+type OrderStatus {
+  createdAt: DateTime!
+  id: ID!
+  orderId: String!
+  status: OrderState!
+}
+
+type Payment {
+  """Amount charged in cents."""
+  amountCents: Int!
+  createdAt: DateTime!
+
+  """ISO 4217 currency code, e.g. "usd"."""
+  currency: String!
+  id: ID!
+  orderId: String!
+  status: PaymentStatus!
+  stripePaymentAttemptId: String
+  updatedAt: DateTime!
+}
+
 """The Stripe payment method used to place the order."""
 enum PaymentMethodType {
   payment_intent
   payment_link
+}
+
+"""The status of a Stripe payment attempt."""
+enum PaymentStatus {
+  failed
+  processing
+  refunded
+  succeeded
 }
 
 type Product {
@@ -343,12 +448,17 @@ type Query {
   myAddresses: [ShippingAddress!]!
 
   """
+  Returns all orders assigned to the authenticated delivery person that are currently in shipped status. Restricted to delivery role.
+  """
+  myAssignedDeliveries: [Order!]!
+
+  """
   Returns all product variants liked by the currently authenticated client.
   """
   myLikes: [Like!]!
 
   """Returns all orders placed by the authenticated client."""
-  myOrders: [Order!]!
+  myOrders(filters: MyOrdersFilterInput): [Order!]!
 
   """Returns all orders in the system. Restricted to managers."""
   orders: [Order!]!

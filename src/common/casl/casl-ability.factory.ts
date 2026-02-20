@@ -4,11 +4,11 @@ import { Action, AppAbility } from './casl.types.js';
 import { Like } from '../../modules/likes/models/like.model.js';
 import { CartItem } from '../../modules/cart/models/cart-item.model.js';
 import { ShippingAddress } from '../../modules/shipping-addresses/models/shipping-address.model.js';
-import { Order } from '../../modules/orders/models/order.model.js';
+import { Order, OrderState } from '../../modules/orders/models/order.model.js';
 
 @Injectable()
 export class CaslAbilityFactory {
-  createForUser(user: { role: string }): AppAbility {
+  createForUser(user: { role: string; userId: string }): AppAbility {
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
     if (user.role === 'manager') {
@@ -30,11 +30,28 @@ export class CaslAbilityFactory {
       can(Action.Update, ShippingAddress);
       can(Action.Delete, ShippingAddress);
       can(Action.Create, Order);
-    } else {
-      // delivery: read-only, no access to likes or cart
-      can(Action.Read, 'all');
-      cannot(Action.Read, Like);
-      cannot(Action.Read, CartItem);
+      // Scope Order access to the client's own orders.
+      // `cannot` overrides the broad `can(Read, 'all')` for Order specifically;
+      // the subsequent `can` restores read with a userId condition.
+      // CASL evaluates rules in definition order — later rules take precedence.
+      cannot(Action.Read, Order);
+      can(Action.Read, Order, { userId: user.userId });
+      can(Action.Update, Order, { userId: user.userId });
+    } else if (user.role === 'delivery') {
+      // Delivery persons may only see and update orders that are assigned to
+      // them AND currently in 'shipped' status.
+      // These conditions are evaluated by CASL when ability.can() is called
+      // with an actual Order instance (e.g. in service-level checks).
+      // The PoliciesGuard uses a subject-type check (no instance), which acts
+      // as a coarse first layer; the service enforces the full conditions.
+      can(Action.Read, Order, {
+        assignedDeliveryId: user.userId,
+        currentStatus: OrderState.shipped,
+      });
+      can(Action.Update, Order, {
+        assignedDeliveryId: user.userId,
+        currentStatus: OrderState.shipped,
+      });
     }
 
     return build();

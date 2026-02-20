@@ -1,4 +1,8 @@
 import { Field, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { OrderItem } from './order-item.model.js';
+import { OrderStatus } from './order-status.model.js';
+import { Payment } from './payment.model.js';
+import { ShippingAddress } from '../../shipping-addresses/models/shipping-address.model.js';
 
 export enum OrderState {
   pending    = 'pending',
@@ -35,6 +39,15 @@ export class Order {
   @Field(() => String, { nullable: true })
   guestEmail: string | null;
 
+  @Field(() => String, { nullable: true })
+  assignedDeliveryId: string | null;
+
+  @Field(() => String, { nullable: true })
+  shippingAddressId: string | null;
+
+  @Field(() => ShippingAddress, { nullable: true })
+  shippingAddress?: ShippingAddress | null;
+
   @Field(() => PaymentMethodType)
   paymentMethodType: PaymentMethodType;
 
@@ -52,4 +65,13 @@ export class Order {
 
   @Field(() => Date)
   updatedAt: Date;
+
+  @Field(() => [OrderItem], { nullable: true, description: 'Line items included in this order.' })
+  items?: OrderItem[];
+
+  @Field(() => [Payment], { nullable: true, description: 'Payment attempts associated with this order.' })
+  payments?: Payment[];
+
+  @Field(() => [OrderStatus], { nullable: true, description: 'Full status transition history for this order.' })
+  statuses?: OrderStatus[];
 }

@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import type { MyOrdersFilterInput } from './dto/my-orders-filter.input.js';
+import type { AssignDeliveryInput } from './dto/assign-delivery.input.js';
 import Stripe from 'stripe';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { StripeService } from '../../common/stripe/stripe.service.js';
@@ -19,10 +21,279 @@ export class OrdersService {
     });
   }
 
-  findAllForUser(userId: string) {
+  findAllForUser(userId: string, filters: MyOrdersFilterInput = {}) {
+    const {
+      fromDate,
+      toDate,
+      status,
+      minAmountCents,
+      maxAmountCents,
+      limit = 10,
+      offset = 0,
+    } = filters;
+
     return this.prisma.order.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(fromDate || toDate
+          ? {
+              createdAt: {
+                ...(fromDate ? { gte: fromDate } : {}),
+                ...(toDate   ? { lte: toDate }   : {}),
+              },
+            }
+          : {}),
+        ...(status ? { currentStatus: status } : {}),
+        ...(minAmountCents !== undefined || maxAmountCents !== undefined
+          ? {
+              totalAmountCents: {
+                ...(minAmountCents !== undefined ? { gte: minAmountCents } : {}),
+                ...(maxAmountCents !== undefined ? { lte: maxAmountCents } : {}),
+              },
+            }
+          : {}),
+      },
       orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+  }
+
+  // ─── Manager Mutations ────────────────────────────────────────────────────
+
+  async assignDeliveryAndMarkProcessing(
+    input: AssignDeliveryInput,
+    _managerId: string,
+  ): Promise<number> {
+    const { assignedDeliveryId, orderIds } = input;
+
+    // 1. Fetch only the fields we need for validation — a lightweight SELECT.
+    const orders = await this.prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: { id: true, currentStatus: true },
+    });
+
+    // 2. Guard: every requested ID must exist.
+    if (orders.length !== orderIds.length) {
+      const foundIds = new Set(orders.map((o) => o.id));
+      const missing = orderIds.filter((id) => !foundIds.has(id));
+      throw new BadRequestException(
+        `The following order IDs were not found: ${missing.join(', ')}`,
+      );
+    }
+
+    // 3. Guard: every order must currently be in 'paid' status.
+    //    If even one order is in a different state (processing, shipped, etc.)
+    //    we reject the whole batch — partial assignments would leave the data
+    //    in an inconsistent state.
+    const nonPaid = orders.filter((o) => o.currentStatus !== 'paid');
+    if (nonPaid.length > 0) {
+      throw new BadRequestException(
+        `All orders must have status 'paid' before assignment. ` +
+          `Invalid orders: ${nonPaid.map((o) => o.id).join(', ')}`,
+      );
+    }
+
+    // 4. Atomic batch update inside a transaction.
+    //    Both statements must succeed or both are rolled back — we never
+    //    want orders updated without a corresponding status history row.
+    await this.prisma.$transaction([
+      // a. Stamp the delivery driver and advance the order status in one
+      //    SQL UPDATE … WHERE id IN (…) — a single round-trip regardless
+      //    of how many orders are in the batch.
+      this.prisma.order.updateMany({
+        where: { id: { in: orderIds } },
+        data: { currentStatus: 'processing', assignedDeliveryId },
+      }),
+
+      // b. Append one history row per order to the event-sourcing log.
+      //    createMany maps the array to INSERT rows in a single statement.
+      //    Note: managerId is not stored here because the OrderStatus schema
+      //    has no `updatedBy` column — add that migration first if needed.
+      this.prisma.orderStatus.createMany({
+        data: orderIds.map((orderId) => ({
+          orderId,
+          status: 'processing' as const,
+        })),
+      }),
+    ]);
+
+    return orderIds.length;
+  }
+
+  async markOrderAsShipped(orderId: string, _managerId: string) {
+    // 1. Fetch only what we need — avoids pulling the full row before we know
+    //    whether the transition is even legal.
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, currentStatus: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order "${orderId}" not found.`);
+    }
+
+    // 2. Strict state machine guard.
+    //    We check for EXACTLY 'processing' and produce a specific error for
+    //    every other state so the caller always knows what went wrong and why.
+    if (order.currentStatus !== 'processing') {
+      const reason: Record<string, string> = {
+        pending:   'it has not been paid yet',
+        paid:      'it has been paid but not yet assigned to a delivery driver — run markOrdersAsProcessing first',
+        shipped:   'it has already been shipped',
+        delivered: 'it has already been delivered',
+        cancelled: 'it has been cancelled and cannot be fulfilled',
+      };
+
+      throw new BadRequestException(
+        `Order "${orderId}" cannot be marked as shipped because ` +
+          (reason[order.currentStatus] ?? `its current status is "${order.currentStatus}"`),
+      );
+    }
+
+    // 3. Interactive transaction — we need the updated row back, so we use
+    //    the callback form instead of the array form.
+    return this.prisma.$transaction(async (tx) => {
+      // a. Advance the order status.
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { currentStatus: 'shipped' },
+      });
+
+      // b. Append an immutable entry to the event-sourcing status timeline.
+      //    Note: managerId is not stored here because the OrderStatus schema
+      //    has no `updatedBy` column — add that migration first if needed.
+      await tx.orderStatus.create({
+        data: { orderId, status: 'shipped' },
+      });
+
+      return updated;
+    });
+  }
+
+  // ─── Delivery Person Methods ──────────────────────────────────────────────
+
+  getMyAssignedDeliveries(deliveryPersonId: string) {
+    return this.prisma.order.findMany({
+      where: {
+        assignedDeliveryId: deliveryPersonId,
+        currentStatus: 'shipped',
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async markOrderAsDelivered(orderId: string, deliveryPersonId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, currentStatus: true, assignedDeliveryId: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order "${orderId}" not found.`);
+    }
+
+    // Layer 1 — ownership check.
+    // Rejects requests where the delivery person is not the one assigned,
+    // even if they somehow bypassed the CASL guard.
+    if (order.assignedDeliveryId !== deliveryPersonId) {
+      throw new UnauthorizedException(
+        `You are not the assigned delivery person for order "${orderId}".`,
+      );
+    }
+
+    // Layer 2 — strict state machine check.
+    // An order must be in 'shipped' status to be marked as delivered.
+    if (order.currentStatus !== 'shipped') {
+      const reason: Record<string, string> = {
+        pending:    'it has not been paid yet',
+        paid:       'it has not been assigned to a delivery driver yet',
+        processing: 'it has been assigned but not yet dispatched — wait for it to be marked shipped',
+        delivered:  'it has already been delivered',
+        cancelled:  'it has been cancelled',
+      };
+
+      throw new BadRequestException(
+        `Order "${orderId}" cannot be marked as delivered because ` +
+          (reason[order.currentStatus] ?? `its current status is "${order.currentStatus}"`),
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { currentStatus: 'delivered' },
+      });
+
+      // Note: deliveryPersonId is not stored here because the OrderStatus
+      // schema has no `updatedBy` column — add that migration first if needed.
+      await tx.orderStatus.create({
+        data: { orderId, status: 'delivered' },
+      });
+
+      return updated;
+    });
+  }
+
+  // ─── Client Mutations ─────────────────────────────────────────────────────
+
+  async cancelOrder(orderId: string, clientId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, userId: true, currentStatus: true },
+    });
+
+    // 1. Existence check — NotFoundException is semantically correct here.
+    if (!order) {
+      throw new NotFoundException(`Order "${orderId}" not found.`);
+    }
+
+    // 2. Ownership check — a second security layer beyond the CASL guard.
+    //    Prevents a client from cancelling another user's order even if they
+    //    somehow know the ID.
+    if (order.userId !== clientId) {
+      throw new ForbiddenException(
+        'You do not have permission to cancel this order.',
+      );
+    }
+
+    // 3. State machine validation — only allow cancellation from early states.
+    //    Once an order is shipped, it is physically out for delivery; once
+    //    delivered, the transaction is complete. Both are irreversible from
+    //    the client's perspective.
+    const nonCancellableStatuses: string[] = [
+      'shipped',
+      'delivered',
+      'cancelled',
+    ];
+
+    if (nonCancellableStatuses.includes(order.currentStatus)) {
+      const reason: Record<string, string> = {
+        shipped:   'it has already been shipped and is out for delivery',
+        delivered: 'it has already been delivered',
+        cancelled: 'it has already been cancelled',
+      };
+
+      throw new BadRequestException(
+        `Order "${orderId}" cannot be cancelled because ` +
+          (reason[order.currentStatus] ?? `its current status is "${order.currentStatus}"`),
+      );
+    }
+
+    // 4. Atomic transition — update the order and append the history row.
+    //    Note: clientId is not stored here because the OrderStatus schema
+    //    has no `updatedBy` column — add that migration first if needed.
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { currentStatus: 'cancelled' },
+      });
+
+      await tx.orderStatus.create({
+        data: { orderId, status: 'cancelled' },
+      });
+
+      return updated;
     });
   }
 
