@@ -11,22 +11,23 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
-    const msg = {
-      to,
+
+    const forgetPasswordBody = {
       from: this.configService.sendgrid.fromEmail,
-      subject: 'Password Reset Request',
-      text: `You requested a password reset. Use this token to reset your password: ${token}. This token expires in 15 minutes.`,
-      html: `
-        <h2>Password Reset Request</h2>
-        <p>You requested a password reset. Use the token below to reset your password:</p>
-        <p><strong>${token}</strong></p>
-        <p>This token expires in ${this.configService.passwordReset.ttl}.</p>
-        <p>If you did not request this, please ignore this email.</p>
-      `,
+      personalizations: [
+        {
+          to,
+          dynamic_template_data: {
+            reset_token: token,
+            expiration_time: this.configService.passwordReset.ttl,
+          },
+        },
+      ],
+      templateId: 'd-92ccd7cec3a34854b0ad2a192a5359f8',
     };
 
     try {
-      await sgMail.send(msg);
+      await sgMail.send(forgetPasswordBody);
       this.logger.log(`Password reset email sent to ${to}`);
     } catch (error) {
       this.logger.error(`Failed to send password reset email to ${to}`, error);
