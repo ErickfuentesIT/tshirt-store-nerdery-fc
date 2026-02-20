@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, ID, Mutation, Resolver } from '@nestjs/graphql';
+import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
 import { PoliciesGuard } from '../../common/guards/policies.guard.js';
 import { CheckPolicies } from '../../common/decorators/check-policies.decorator.js';
@@ -14,6 +14,24 @@ import { CheckoutPayload } from './dto/checkout-payload.dto.js';
 @Resolver()
 export class OrdersResolver {
   constructor(private readonly ordersService: OrdersService) {}
+
+  @CheckPolicies((ability) => ability.can(Action.Manage, Order))
+  @Query(() => [Order], {
+    name: 'orders',
+    description: 'Returns all orders in the system. Restricted to managers.',
+  })
+  orders() {
+    return this.ordersService.findAll();
+  }
+
+  @CheckPolicies((ability) => ability.can(Action.Create, Order))
+  @Query(() => [Order], {
+    name: 'myOrders',
+    description: 'Returns all orders placed by the authenticated client.',
+  })
+  myOrders(@CurrentUser() user: CurrentUserType) {
+    return this.ordersService.findAllForUser(user.userId);
+  }
 
   @CheckPolicies((ability) => ability.can(Action.Create, Order))
   @Mutation(() => CheckoutPayload, {

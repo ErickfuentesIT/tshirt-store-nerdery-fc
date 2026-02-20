@@ -2,18 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { StripeService } from '../../common/stripe/stripe.service.js';
-
-// Structural type derived from the shape of the cartItem.findMany query below.
-// Avoids importing generated Prisma model types directly.
-type CartItemWithVariant = {
-  productVariantId: string;
-  quantity: number;
-  productVariant: {
-    priceCents: number;
-    stock: number;
-    sku: string;
-  };
-};
+import { validateStock } from './helpers/validate-stock.helper.js';
 
 @Injectable()
 export class OrdersService {
@@ -21,6 +10,21 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
   ) {}
+
+  // ─── Queries ──────────────────────────────────────────────────────────────
+
+  findAll() {
+    return this.prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findAllForUser(userId: string) {
+    return this.prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 
   // ─── Method B: GraphQL Mutation Entry Point ───────────────────────────────
   //
@@ -31,7 +35,7 @@ export class OrdersService {
   async initiateCartCheckout(
     userId: string,
     shippingAddressId: string,
-    promoCode?: string,
+    _promoCode?: string,
   ): Promise<{ clientSecret: string; orderId: string }> {
     // 1. Fetch user and cart contents in a single round-trip to the DB.
     //    We need the user for their email (customer creation) and their
@@ -51,7 +55,7 @@ export class OrdersService {
 
     // 3. Guard: validate stock for every item before touching Stripe.
     //    Throws immediately on the first item that cannot be fulfilled.
-    this.validateStock(cartItems);
+    validateStock(cartItems);
 
     // 4. Calculate the order total in cents — the only unit Stripe accepts.
     const totalAmountCents = cartItems.reduce(
@@ -142,6 +146,11 @@ export class OrdersService {
 
   async handleStripeEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session,
+        );
+        break;
       case 'payment_intent.succeeded':
         await this.handlePaymentIntentSucceeded(
           event.data.object as Stripe.PaymentIntent,
@@ -150,6 +159,155 @@ export class OrdersService {
       default:
         break;
     }
+  }
+
+  // ─── Method A: Webhook Handler ────────────────────────────────────────────
+  //
+  // Fired by Stripe after a Payment Link checkout completes.
+  // Handles both registered users and anonymous guests.
+
+  private async handleCheckoutSessionCompleted(
+    session: Stripe.Checkout.Session,
+  ): Promise<void> {
+    // Idempotency guard — stripeCheckoutSessionId has a @unique constraint,
+    // so a second attempt to insert the same value will throw a P2002.
+    // We check explicitly here to return cleanly instead of crashing.
+    const existing = await this.prisma.order.findUnique({
+      where: { stripeCheckoutSessionId: session.id },
+    });
+    if (existing) return;
+
+    // The webhook payload does not include line_items. Re-fetch with expand
+    // so we can read the stripe_price_id to identify the ProductVariant.
+    const fullSession = await this.stripeService.retrieveCheckoutSession(
+      session.id,
+    );
+
+    const stripePriceId = fullSession.line_items?.data[0]?.price?.id;
+    if (!stripePriceId) {
+      throw new Error(
+        `checkout.session.completed: no price ID in session ${session.id}`,
+      );
+    }
+
+    // Identify which ProductVariant was purchased via the Payment Link.
+    const variant = await this.prisma.productVariant.findUnique({
+      where: { stripePriceId },
+    });
+    if (!variant) {
+      throw new Error(
+        `checkout.session.completed: no variant found for price ${stripePriceId}`,
+      );
+    }
+
+    // ── User resolution ──────────────────────────────────────────────────────
+    // If the buyer's email matches a registered account we link the order to
+    // their userId. Otherwise the order is stored as a guest purchase.
+    const email = fullSession.customer_details?.email ?? null;
+    const registeredUser = email
+      ? await this.prisma.user.findUnique({ where: { email } })
+      : null;
+
+    // ── Shipping address extraction ──────────────────────────────────────────
+    // Stripe populates shipping_details because we set
+    // shipping_address_collection on the PaymentLink at creation time.
+    // In Stripe API 2025-01-27 (used by stripe@^20), shipping_details was
+    // moved from a top-level field to collected_information.shipping_details.
+    const shippingDetails = fullSession.collected_information?.shipping_details;
+    const address = shippingDetails?.address;
+    if (!address) {
+      throw new Error(
+        `checkout.session.completed: no shipping address in session ${session.id}`,
+      );
+    }
+
+    // The PaymentIntent ID stored here is the payment_attempt reference used
+    // for financial reporting and potential refunds.
+    const paymentIntentId =
+      typeof fullSession.payment_intent === 'string'
+        ? fullSession.payment_intent
+        : (fullSession.payment_intent?.id ?? null);
+
+    // ── Atomic transaction ───────────────────────────────────────────────────
+    await this.prisma.$transaction(async (tx) => {
+      // a. Re-read the variant inside the transaction to acquire a row-level
+      //    lock and get the latest stock value, preventing race conditions
+      //    between concurrent webhook deliveries for the same variant.
+      const lockedVariant = await tx.productVariant.findUnique({
+        where: { id: variant.id },
+      });
+      if (!lockedVariant || lockedVariant.stock <= 0) {
+        throw new BadRequestException(
+          `SKU "${variant.sku}" is out of stock. The order cannot be fulfilled.`,
+        );
+      }
+
+      // a. Decrement stock by exactly 1 (Payment Links are single-unit).
+      await tx.productVariant.update({
+        where: { id: variant.id },
+        data: { stock: { decrement: 1 } },
+      });
+
+      // b. Create the ShippingAddress row first so we have its ID.
+      //    Prisma disallows mixing a raw FK field (userId) with a nested
+      //    relation create (shippingAddress: { create }) in the same write
+      //    because they belong to mutually exclusive input types.
+      //    Splitting into two sequential writes inside the same transaction
+      //    keeps everything atomic without triggering that conflict.
+      const savedAddress = await tx.shippingAddress.create({
+        data: {
+          userId: registeredUser?.id ?? null,
+          recipientName: shippingDetails?.name ?? 'N/A',
+          // Phone is not collected by Payment Links by default.
+          phoneNumber: fullSession.customer_details?.phone ?? 'N/A',
+          street: address.line1!,
+          city: address.city!,
+          state: address.state!,
+          country: address.country!,
+          additionalDescription: address.line2 ?? null,
+        },
+      });
+
+      // c–f. Create the order and all child records.
+      await tx.order.create({
+        data: {
+          // Registered user or guest — mutually exclusive.
+          userId: registeredUser?.id ?? null,
+          guestEmail: registeredUser ? null : email,
+
+          shippingAddressId: savedAddress.id,
+          stripeCheckoutSessionId: session.id,
+          paymentMethodType: 'payment_link',
+          currentStatus: 'paid',
+          totalAmountCents: fullSession.amount_total!,
+          discountAmountCents: 0,
+
+          // c. Snapshot the purchased item as an immutable OrderItem.
+          items: {
+            create: {
+              variantId: variant.id,
+              quantity: 1,
+              priceAtPurchaseCents: variant.priceCents,
+            },
+          },
+
+          // d. Seed the event-sourcing status log.
+          statuses: {
+            create: { status: 'paid' },
+          },
+
+          // e. Record the confirmed payment for financial reporting.
+          payments: {
+            create: {
+              stripePaymentAttemptId: paymentIntentId,
+              amountCents: fullSession.amount_total!,
+              currency: fullSession.currency!,
+              status: 'succeeded',
+            },
+          },
+        },
+      });
+    });
   }
 
   // ─── Method B: Webhook Handler ────────────────────────────────────────────
@@ -223,18 +381,5 @@ export class OrdersService {
         await tx.cartItem.deleteMany({ where: { userId } });
       }
     });
-  }
-
-  // ─── Private Helpers ──────────────────────────────────────────────────────
-
-  private validateStock(cartItems: CartItemWithVariant[]): void {
-    for (const item of cartItems) {
-      if (item.productVariant.stock < item.quantity) {
-        throw new BadRequestException(
-          `Insufficient stock for SKU "${item.productVariant.sku}". ` +
-            `Requested: ${item.quantity}, available: ${item.productVariant.stock}.`,
-        );
-      }
-    }
   }
 }

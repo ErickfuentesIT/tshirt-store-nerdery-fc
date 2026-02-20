@@ -257,6 +257,38 @@ type Mutation {
   updateShippingAddress(data: UpdateShippingAddressInput!): ShippingAddress!
 }
 
+type Order {
+  createdAt: DateTime!
+  currentStatus: OrderState!
+
+  """Discount applied in cents."""
+  discountAmountCents: Int!
+  guestEmail: String
+  id: ID!
+  paymentMethodType: PaymentMethodType!
+
+  """Order total in cents."""
+  totalAmountCents: Int!
+  updatedAt: DateTime!
+  userId: String
+}
+
+"""The lifecycle state of an order."""
+enum OrderState {
+  cancelled
+  delivered
+  paid
+  pending
+  processing
+  shipped
+}
+
+"""The Stripe payment method used to place the order."""
+enum PaymentMethodType {
+  payment_intent
+  payment_link
+}
+
 type Product {
   basePrice: Int!
   category: Category
@@ -278,6 +310,12 @@ type ProductVariant {
   productId: String!
   sku: String!
   stock: Int!
+  stripePaymentLinkId: String
+
+  """Shareable Stripe Payment Link URL for single-product purchases."""
+  stripePaymentLinkUrl: String
+  stripePriceId: String
+  stripeProductId: String
   updatedAt: DateTime!
   variantAttributes: [VariantAttributeCategory!]
 }
@@ -308,6 +346,12 @@ type Query {
   Returns all product variants liked by the currently authenticated client.
   """
   myLikes: [Like!]!
+
+  """Returns all orders placed by the authenticated client."""
+  myOrders: [Order!]!
+
+  """Returns all orders in the system. Restricted to managers."""
+  orders: [Order!]!
 
   """Fetches a single active product by its ID."""
   product(id: ID!): Product!

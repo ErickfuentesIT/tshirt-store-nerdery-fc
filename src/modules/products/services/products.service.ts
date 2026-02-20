@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { CustomConfigService } from '../../../common/config/config.service.js';
+import { StripeService } from '../../../common/stripe/stripe.service.js';
 import { UpdateProductInput } from '../dto/update-product.input.js';
 import { CreateProductWithVariantsInput } from '../dto/create-product-with-variants.input.js';
 import { AddVariantsInput } from '../dto/add-variants.input.js';
@@ -58,6 +59,15 @@ function assertNoDuplicateCategories(
   }
 }
 
+// Shape returned by StripeService.generateVariantStripeData — kept here
+// to avoid importing the raw Stripe SDK types into the service.
+type VariantStripeData = {
+  stripeProductId: string;
+  stripePriceId: string;
+  stripePaymentLinkId: string;
+  stripePaymentLinkUrl: string;
+};
+
 @Injectable()
 export class ProductsService {
   private readonly bucketUrl: string;
@@ -65,207 +75,277 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: CustomConfigService,
+    private readonly stripeService: StripeService,
   ) {
     const { s3BucketName, region } = this.configService.aws;
     this.bucketUrl = `https://${s3BucketName}.s3.${region}.amazonaws.com`;
   }
 
-
   async createWithVariants(data: CreateProductWithVariantsInput) {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Validate category exists
-      const category = await tx.category.findUnique({
-        where: { id: data.categoryId },
-      });
-      if (!category) {
-        throw new NotFoundException(
-          `Category with ID "${data.categoryId}" not found`,
-        );
-      }
+    // ── Phase 1: Generate Stripe objects for every variant ─────────────────
+    // Stripe API calls MUST live outside the Prisma transaction.
+    // A slow network call inside a transaction holds a DB connection open
+    // for its full duration, which exhausts the connection pool under load.
+    //
+    // Image URLs are computed here from imageKeys + bucketUrl so they can
+    // be passed to Stripe (shown on the hosted payment page) without waiting
+    // for the DB write to happen.
+    const stripeDataList: VariantStripeData[] = [];
 
-      // 2. Collect all unique attribute IDs across all variants and validate
-      const allAttributeIds = [
-        ...new Set(data.variants.flatMap((v) => v.attributeValueIds)),
-      ];
-
-      const attributes = await tx.attribute.findMany({
-        where: { id: { in: allAttributeIds } },
-        include: { attributeCategory: { select: { name: true } } },
-      });
-
-      if (attributes.length !== allAttributeIds.length) {
-        const foundIds = new Set(attributes.map((a) => a.id));
-        const missingIds = allAttributeIds.filter((id) => !foundIds.has(id));
-        throw new NotFoundException(
-          `Attributes not found: ${missingIds.join(', ')}`,
-        );
-      }
-
-      // attributeId → code (for SKU generation)
-      const attributeMap = new Map(attributes.map((a) => [a.id, a.code]));
-      // attributeId → { categoryId, categoryName } (for duplicate-category validation)
-      const attributeMeta = new Map<string, AttributeMeta>(
-        attributes.map((a) => [
-          a.id,
-          { categoryId: a.attributeCategoryId, categoryName: a.attributeCategory.name },
-        ]),
+    for (const variantInput of data.variants) {
+      const imageUrls = variantInput.imageKeys.map(
+        (key) => `${this.bucketUrl}/${key}`,
       );
+      const stripeData = await this.stripeService.generateVariantStripeData(
+        data.name,
+        variantInput.priceCents,
+        imageUrls,
+      );
+      stripeDataList.push(stripeData);
+    }
 
-      // 3. Create the product
-      const product = await tx.product.create({
-        data: {
-          name: data.name,
-          description: data.description,
-          basePrice: data.basePrice,
-          categoryId: data.categoryId,
-        },
-      });
-
-      // 4. Create each variant with its SKU, junction records, and images
-      for (const variantInput of data.variants) {
-        assertNoDuplicateCategories(variantInput.attributeValueIds, attributeMeta);
-
-        // Resolve immutable codes for SKU generation
-        const codes = variantInput.attributeValueIds.map(
-          (id) => attributeMap.get(id) as string,
-        );
-        const sku = generateSku(data.name, codes);
-
-        // Let the DB unique constraint be the source of truth.
-        // Catching P2002 here is safer than a check-then-act pattern,
-        // which is vulnerable to race conditions under concurrent requests.
-        let variant;
-        try {
-          variant = await tx.productVariant.create({
-            data: {
-              productId: product.id,
-              sku,
-              stock: variantInput.stock,
-              priceCents: variantInput.priceCents,
-            },
-          });
-        } catch (error) {
-          if ((error as { code?: string })?.code === 'P2002') {
-            throw new ConflictException(`SKU "${sku}" already exists`);
-          }
-          throw error;
+    // ── Phase 2: DB transaction ────────────────────────────────────────────
+    // If the transaction rolls back (duplicate SKU, missing category, etc.)
+    // we immediately deactivate the Stripe objects created above so they
+    // don't appear as live products/links in the Stripe dashboard.
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Validate category exists
+        const category = await tx.category.findUnique({
+          where: { id: data.categoryId },
+        });
+        if (!category) {
+          throw new NotFoundException(
+            `Category with ID "${data.categoryId}" not found`,
+          );
         }
 
-        // Create junction records (variant ↔ attributes)
-        await tx.variantAttributeCategory.createMany({
-          data: variantInput.attributeValueIds.map((attributeId) => ({
-            variantId: variant.id,
-            attributeId,
-          })),
+        // 2. Collect all unique attribute IDs across all variants and validate
+        const allAttributeIds = [
+          ...new Set(data.variants.flatMap((v) => v.attributeValueIds)),
+        ];
+
+        const attributes = await tx.attribute.findMany({
+          where: { id: { in: allAttributeIds } },
+          include: { attributeCategory: { select: { name: true } } },
         });
 
-        // Create images linked to both the product and the variant
-        if (variantInput.imageKeys.length > 0) {
-          await tx.image.createMany({
-            data: variantInput.imageKeys.map((key) => ({
-              productId: product.id,
+        if (attributes.length !== allAttributeIds.length) {
+          const foundIds = new Set(attributes.map((a) => a.id));
+          const missingIds = allAttributeIds.filter((id) => !foundIds.has(id));
+          throw new NotFoundException(
+            `Attributes not found: ${missingIds.join(', ')}`,
+          );
+        }
+
+        const attributeMap = new Map(attributes.map((a) => [a.id, a.code]));
+        const attributeMeta = new Map<string, AttributeMeta>(
+          attributes.map((a) => [
+            a.id,
+            { categoryId: a.attributeCategoryId, categoryName: a.attributeCategory.name },
+          ]),
+        );
+
+        // 3. Create the product
+        const product = await tx.product.create({
+          data: {
+            name: data.name,
+            description: data.description,
+            basePrice: data.basePrice,
+            categoryId: data.categoryId,
+          },
+        });
+
+        // 4. Create each variant with its Stripe IDs, SKU, junction records, and images.
+        //    We iterate by index so each variant can access its pre-generated stripeData.
+        for (let i = 0; i < data.variants.length; i++) {
+          const variantInput = data.variants[i];
+          const stripeData = stripeDataList[i];
+
+          assertNoDuplicateCategories(variantInput.attributeValueIds, attributeMeta);
+
+          const codes = variantInput.attributeValueIds.map(
+            (id) => attributeMap.get(id) as string,
+          );
+          const sku = generateSku(data.name, codes);
+
+          // Let the DB unique constraint be the source of truth for SKU uniqueness.
+          let variant;
+          try {
+            variant = await tx.productVariant.create({
+              data: {
+                productId: product.id,
+                sku,
+                stock: variantInput.stock,
+                priceCents: variantInput.priceCents,
+                stripeProductId: stripeData.stripeProductId,
+                stripePriceId: stripeData.stripePriceId,
+                stripePaymentLinkId: stripeData.stripePaymentLinkId,
+                stripePaymentLinkUrl: stripeData.stripePaymentLinkUrl,
+              },
+            });
+          } catch (error) {
+            if ((error as { code?: string })?.code === 'P2002') {
+              throw new ConflictException(`SKU "${sku}" already exists`);
+            }
+            throw error;
+          }
+
+          await tx.variantAttributeCategory.createMany({
+            data: variantInput.attributeValueIds.map((attributeId) => ({
               variantId: variant.id,
-              imageKey: key,
-              imageUrl: `${this.bucketUrl}/${key}`,
+              attributeId,
             })),
           });
-        }
-      }
 
-      // 5. Return the product — field resolvers handle all nested relations
-      return product;
-    });
+          if (variantInput.imageKeys.length > 0) {
+            await tx.image.createMany({
+              data: variantInput.imageKeys.map((key) => ({
+                productId: product.id,
+                variantId: variant.id,
+                imageKey: key,
+                imageUrl: `${this.bucketUrl}/${key}`,
+              })),
+            });
+          }
+        }
+
+        return product;
+      });
+    } catch (error) {
+      // Deactivate orphaned Stripe objects. Errors here are swallowed so the
+      // original DB error is what surfaces to the caller.
+      await this.stripeService
+        .deactivateVariantStripeData(stripeDataList)
+        .catch((cleanupErr) =>
+          console.error('Stripe cleanup failed after DB rollback:', cleanupErr),
+        );
+      throw error;
+    }
   }
 
   async addVariants(productId: string, data: AddVariantsInput) {
-  return this.prisma.$transaction(async (tx) => {
-    // 1. Validate the parent product exists
-    const product = await tx.product.findUnique({
+    // ── Phase 1: Pre-flight validation and Stripe generation ───────────────
+    // We need the product name for Stripe BEFORE the transaction.
+    // This pre-fetch also gives us an early 404 before touching Stripe at all.
+    const product = await this.prisma.product.findUnique({
       where: { id: productId },
     });
-    
     if (!product) {
       throw new NotFoundException(`Product with ID "${productId}" not found`);
     }
 
-    // 2. Collect and validate attributes (Reuse your existing logic)
-    const allAttributeIds = [
-      ...new Set(data.variants.flatMap((v) => v.attributeValueIds)),
-    ];
+    const stripeDataList: VariantStripeData[] = [];
 
-    const attributes = await tx.attribute.findMany({
-      where: { id: { in: allAttributeIds } },
-      include: { attributeCategory: { select: { name: true } } },
-    });
-
-    if (attributes.length !== allAttributeIds.length) {
-      const foundIds = new Set(attributes.map((a) => a.id));
-      const missingIds = allAttributeIds.filter((id) => !foundIds.has(id));
-      throw new NotFoundException(`Attributes not found: ${missingIds.join(', ')}`);
-    }
-
-    const attributeMap = new Map(attributes.map((a) => [a.id, a.code]));
-    const attributeMeta = new Map<string, AttributeMeta>(
-      attributes.map((a) => [
-        a.id,
-        { categoryId: a.attributeCategoryId, categoryName: a.attributeCategory.name },
-      ]),
-    );
-
-    // 3. Process new variants
     for (const variantInput of data.variants) {
-      assertNoDuplicateCategories(variantInput.attributeValueIds, attributeMeta);
-
-      const codes = variantInput.attributeValueIds.map(
-        (id) => attributeMap.get(id) as string,
+      const imageUrls = (variantInput.imageKeys ?? []).map(
+        (key) => `${this.bucketUrl}/${key}`,
       );
-      const sku = generateSku(product.name, codes);
-
-      // 4. Delegate uniqueness enforcement to the DB constraint (P2002).
-      // This avoids a check-then-act race condition.
-      let variant;
-      try {
-        variant = await tx.productVariant.create({
-          data: {
-            productId: product.id,
-            sku,
-            stock: variantInput.stock,
-            priceCents: variantInput.priceCents,
-          },
-        });
-      } catch (error) {
-        if ((error as { code?: string })?.code === 'P2002') {
-          throw new ConflictException(`Variant with SKU "${sku}" already exists`);
-        }
-        throw error;
-      }
-
-      // 6. Link attributes
-      await tx.variantAttributeCategory.createMany({
-        data: variantInput.attributeValueIds.map((attributeId) => ({
-          variantId: variant.id,
-          attributeId,
-        })),
-      });
-
-      // 7. Link images
-      if (variantInput.imageKeys?.length > 0) {
-        await tx.image.createMany({
-          data: variantInput.imageKeys.map((key) => ({
-            productId: product.id,
-            variantId: variant.id,
-            imageKey: key,
-            imageUrl: `${this.bucketUrl}/${key}`,
-          })),
-        });
-      }
+      const stripeData = await this.stripeService.generateVariantStripeData(
+        product.name,
+        variantInput.priceCents,
+        imageUrls,
+      );
+      stripeDataList.push(stripeData);
     }
 
-    // 8. Return the product — field resolvers handle all nested relations
-    return product;
-  });
-}
+    // ── Phase 2: DB transaction ────────────────────────────────────────────
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Re-validate the product inside the transaction to protect against
+        // a concurrent deletion between the pre-fetch and the transaction start.
+        const lockedProduct = await tx.product.findUnique({
+          where: { id: productId },
+        });
+        if (!lockedProduct) {
+          throw new NotFoundException(`Product with ID "${productId}" not found`);
+        }
 
+        const allAttributeIds = [
+          ...new Set(data.variants.flatMap((v) => v.attributeValueIds)),
+        ];
+
+        const attributes = await tx.attribute.findMany({
+          where: { id: { in: allAttributeIds } },
+          include: { attributeCategory: { select: { name: true } } },
+        });
+
+        if (attributes.length !== allAttributeIds.length) {
+          const foundIds = new Set(attributes.map((a) => a.id));
+          const missingIds = allAttributeIds.filter((id) => !foundIds.has(id));
+          throw new NotFoundException(`Attributes not found: ${missingIds.join(', ')}`);
+        }
+
+        const attributeMap = new Map(attributes.map((a) => [a.id, a.code]));
+        const attributeMeta = new Map<string, AttributeMeta>(
+          attributes.map((a) => [
+            a.id,
+            { categoryId: a.attributeCategoryId, categoryName: a.attributeCategory.name },
+          ]),
+        );
+
+        for (let i = 0; i < data.variants.length; i++) {
+          const variantInput = data.variants[i];
+          const stripeData = stripeDataList[i];
+
+          assertNoDuplicateCategories(variantInput.attributeValueIds, attributeMeta);
+
+          const codes = variantInput.attributeValueIds.map(
+            (id) => attributeMap.get(id) as string,
+          );
+          const sku = generateSku(lockedProduct.name, codes);
+
+          let variant;
+          try {
+            variant = await tx.productVariant.create({
+              data: {
+                productId: lockedProduct.id,
+                sku,
+                stock: variantInput.stock,
+                priceCents: variantInput.priceCents,
+                stripeProductId: stripeData.stripeProductId,
+                stripePriceId: stripeData.stripePriceId,
+                stripePaymentLinkId: stripeData.stripePaymentLinkId,
+                stripePaymentLinkUrl: stripeData.stripePaymentLinkUrl,
+              },
+            });
+          } catch (error) {
+            if ((error as { code?: string })?.code === 'P2002') {
+              throw new ConflictException(`Variant with SKU "${sku}" already exists`);
+            }
+            throw error;
+          }
+
+          await tx.variantAttributeCategory.createMany({
+            data: variantInput.attributeValueIds.map((attributeId) => ({
+              variantId: variant.id,
+              attributeId,
+            })),
+          });
+
+          if (variantInput.imageKeys?.length > 0) {
+            await tx.image.createMany({
+              data: variantInput.imageKeys.map((key) => ({
+                productId: lockedProduct.id,
+                variantId: variant.id,
+                imageKey: key,
+                imageUrl: `${this.bucketUrl}/${key}`,
+              })),
+            });
+          }
+        }
+
+        return lockedProduct;
+      });
+    } catch (error) {
+      await this.stripeService
+        .deactivateVariantStripeData(stripeDataList)
+        .catch((cleanupErr) =>
+          console.error('Stripe cleanup failed after DB rollback:', cleanupErr),
+        );
+      throw error;
+    }
+  }
 
   async findAll(skip: number, take: number) {
     return this.prisma.product.findMany({

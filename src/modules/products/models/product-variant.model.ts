@@ -22,6 +22,22 @@ export class ProductVariant {
   @Field(() => Boolean)
   isActive: boolean;
 
+  @Field(() => String, { nullable: true })
+  stripeProductId: string | null;
+
+  @Field(() => String, { nullable: true })
+  stripePriceId: string | null;
+
+  @Field(() => String, { nullable: true })
+  stripePaymentLinkId: string | null;
+
+  @Field(() => String, {
+    nullable: true,
+    description:
+      'Shareable Stripe Payment Link URL for single-product purchases.',
+  })
+  stripePaymentLinkUrl: string | null;
+
   @Field(() => Date)
   updatedAt: Date;
 

@@ -5,15 +5,14 @@ import { StripeService } from './../../common/stripe/stripe.service.js';
 import { OrdersService } from './orders.service.js';
 
 
-@Controller('stripe')
+@Controller('webhooks')
 export class WebhookController {
     constructor(
     private readonly stripeService: StripeService,
     private readonly ordersService: OrdersService,
   ) {}
 
-  // This creates the endpoint: POST http://localhost:3000/webhooks/stripe
-  @Post('webhooks')
+  @Post('stripe')
   @HttpCode(HttpStatus.OK) // Stripe requires a 200 OK response, not the default 201 Created
   async handleStripeWebhook(
     @Headers('stripe-signature') signature: string,
