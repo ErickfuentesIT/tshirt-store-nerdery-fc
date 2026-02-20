@@ -7,6 +7,8 @@ import { Attribute } from '../../modules/products/models/attribute.model.js';
 import { Image } from '../../modules/products/models/image.model.js';
 import { Like } from '../../modules/likes/models/like.model.js';
 import { CartItem } from '../../modules/cart/models/cart-item.model.js';
+import { ShippingAddress } from '../../modules/shipping-addresses/models/shipping-address.model.js';
+import { Order } from '../../modules/orders/models/order.model.js';
 
 export enum Action {
   Manage = 'manage',
@@ -25,6 +27,8 @@ export type Subjects = InferSubjects<
   | typeof Image
   | typeof Like
   | typeof CartItem
+  | typeof ShippingAddress
+  | typeof Order
 > | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

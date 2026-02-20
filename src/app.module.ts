@@ -18,6 +18,8 @@ import { CartModule } from './modules/cart/cart.module.js';
 import { S3Module } from './common/s3/s3.module.js';
 import { StripeModule } from './common/stripe/stripe.module.js';
 import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter.js';
+import { OrdersModule } from './modules/orders/orders.module.js';
+import { ShippingAddressesModule } from './modules/shipping-addresses/shipping-addresses.module.js';
 @Module({
   imports: [
     CustomConfigModule,
@@ -44,6 +46,8 @@ import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.f
     CategoriesModule,
     LikesModule,
     CartModule,
+    OrdersModule,
+    ShippingAddressesModule,
   ],
   providers: [
     {
