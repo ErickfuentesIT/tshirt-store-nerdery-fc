@@ -57,5 +57,12 @@ export class CustomConfigService {
         this.configService.getOrThrow<string>('AWS_S3_BUCKET_NAME'),
     };
   }
+
+  get stripe() {
+    return {
+      secretKey: this.configService.getOrThrow<string>('STRIPE_SECRET_KEY'),
+      webhookSecret: this.configService.getOrThrow<string>('STRIPE_WEBHOOK_SECRET'),
+    };
+  }
 }
 export { ConfigService };

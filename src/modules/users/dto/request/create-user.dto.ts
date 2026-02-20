@@ -12,11 +12,6 @@ export class CreateUserRequestDto {
   @IsNotEmpty()
   username: string;
 
-  @ApiProperty({ example: '+1234567890' })
-  @IsString()
-  @IsNotEmpty()
-  phoneNumber: string;
-
   @ApiProperty({ example: 'john@example.com' })
   @IsEmail()
   @IsNotEmpty()

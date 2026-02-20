@@ -16,6 +16,7 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
 import { LikesModule } from './modules/likes/likes.module.js';
 import { CartModule } from './modules/cart/cart.module.js';
 import { S3Module } from './common/s3/s3.module.js';
+import { StripeModule } from './common/stripe/stripe.module.js';
 import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter.js';
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.f
     }),
     PrismaModule,
     S3Module,
+    StripeModule,
     UsersModule,
     AuthModule,
     ProductsModule,
