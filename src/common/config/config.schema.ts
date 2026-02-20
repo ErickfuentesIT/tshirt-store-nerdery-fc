@@ -21,4 +21,6 @@ export const configValidationSchema = Joi.object({
   AWS_S3_BUCKET_NAME: Joi.string().required(),
   STRIPE_SECRET_KEY: Joi.string().required(),
   STRIPE_WEBHOOK_SECRET: Joi.string().required(),
+  REDIS_HOST: Joi.string().default('localhost'),
+  REDIS_PORT: Joi.number().default(6379),
 });

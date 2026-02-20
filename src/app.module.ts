@@ -20,6 +20,7 @@ import { StripeModule } from './common/stripe/stripe.module.js';
 import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.filter.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { ShippingAddressesModule } from './modules/shipping-addresses/shipping-addresses.module.js';
+import { BullMQModule } from './common/bullmq/bullmq.module.js';
 @Module({
   imports: [
     CustomConfigModule,
@@ -48,6 +49,7 @@ import { ShippingAddressesModule } from './modules/shipping-addresses/shipping-a
     CartModule,
     OrdersModule,
     ShippingAddressesModule,
+    BullMQModule,
   ],
   providers: [
     {

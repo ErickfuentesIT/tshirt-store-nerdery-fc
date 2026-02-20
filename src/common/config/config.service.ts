@@ -64,5 +64,12 @@ export class CustomConfigService {
       webhookSecret: this.configService.getOrThrow<string>('STRIPE_WEBHOOK_SECRET'),
     };
   }
+
+  get redis() {
+    return {
+      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+      port: this.configService.get<number>('REDIS_PORT', 6379),
+    };
+  }
 }
 export { ConfigService };
