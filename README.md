@@ -1,98 +1,129 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# T-Shirt Store API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + GraphQL + Prisma e-commerce API.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- **Runtime**: Node.js + TypeScript (ESM)
+- **Framework**: NestJS 11
+- **API**: GraphQL (Apollo Server v5) · REST docs via Swagger
+- **ORM**: Prisma v7 + PostgreSQL 17
+- **Queue**: BullMQ + Redis 7
+- **Auth**: JWT (access + refresh tokens)
+- **Payments**: Stripe
+- **Email**: SendGrid
+- **Storage**: AWS S3
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Prerequisites
 
-```bash
-$ npm install
-```
+- Node.js >= 20
+- Docker + Docker Compose
+- npm
 
-## Compile and run the project
+---
+
+## 1. Clone & Install
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone <repo-url>
+cd tshirt-store-nerdery-fc
+npm install
 ```
 
-## Run tests
+---
+
+## 2. Environment Variables
+
+Copy the example file and fill in your values:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
 ```
 
-## Deployment
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `PORT` | Port the server listens on (default `3000`) |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins |
+| `JWT_ACCESS_SECRET` | Secret for signing access tokens |
+| `JWT_ACCESS_EXPIRES_IN` | Access token TTL (e.g. `60s`) |
+| `JWT_REFRESH_SECRET` | Secret for signing refresh tokens |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token TTL (e.g. `7d`) |
+| `SENDGRID_API_KEY` | SendGrid API key for transactional emails |
+| `SENDGRID_FROM_EMAIL` | Verified sender email address |
+| `PASSWORD_RESET_TTL` | Password reset token TTL (e.g. `15m`) |
+| `AWS_S3_BUCKET_NAME` | S3 bucket name for image uploads |
+| `AWS_REGIONS` | AWS region of the bucket (e.g. `us-east-1`) |
+| `AWS_ACCESS_KEY_ID` | AWS IAM access key |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key |
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
+| `REDIS_HOST` | Redis host (default `localhost`) |
+| `REDIS_PORT` | Redis port (default `6379`) |
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+For local development the `DATABASE_URL` matching the Docker Compose config is:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```
+DATABASE_URL="postgresql://postgres:nerdery_2026@localhost:5432/tshirt_store_nerderydb"
+```
+
+---
+
+## 3. Start Infrastructure (Docker)
+
+Starts PostgreSQL 17 and Redis 7:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker compose up -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## 4. Database Setup
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+# Generate the Prisma client
+npm run prisma:generate
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# Run migrations
+npm run prisma:migrate
 
-## Support
+# Seed initial data
+npm run prisma:seed
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## 5. Run the Server
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+# Development (watch mode)
+npm run start:dev
 
-## License
+# Production
+npm run build
+npm run start:prod
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+## 6. Stripe Webhook (local)
+
+To receive Stripe events locally, forward them using the Stripe CLI:
+
+```bash
+stripe listen --forward-to localhost:3000/webhook
+```
+
+Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET` in your `.env`.
+
+---
+
+## API Access
+
+| Interface | URL |
+|---|---|
+| GraphQL Playground | `http://localhost:3000/graphql` |
+| Swagger (REST docs) | `http://localhost:3000/api/docs` |

@@ -1,0 +1,657 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input AddItemToCartInput {
+  """ID of the product variant to add to the cart."""
+  productVariantId: ID!
+
+  """Number of units to add. Must be a positive integer."""
+  quantity: Int!
+}
+
+input AddVariantsInput {
+  variants: [CreateVariantInput!]!
+}
+
+input AssignDeliveryInput {
+  """UUID of the delivery person to assign."""
+  assignedDeliveryId: ID!
+
+  """UUIDs of the paid orders to assign and mark as processing."""
+  orderIds: [ID!]!
+}
+
+type Attribute {
+  attributeCategory: AttributeCategory
+  attributeCategoryId: String!
+  code: String!
+  displayName: String!
+  id: ID!
+}
+
+type AttributeCategory {
+  attributes: [Attribute!]
+  id: ID!
+  name: String!
+}
+
+type CartItem {
+  createdAt: DateTime!
+  id: ID!
+  productVariant: ProductVariant
+  productVariantId: String!
+  quantity: Int!
+  updatedAt: DateTime!
+  userId: String!
+}
+
+type Category {
+  id: ID!
+  name: String!
+}
+
+type CheckoutPayload {
+  """
+  The Stripe client_secret. Pass this to Stripe.js on the frontend to render the Payment Element and confirm the payment.
+  """
+  clientSecret: String!
+
+  """The ID of the newly created pending order in our database."""
+  orderId: ID!
+}
+
+input CreateCategoryInput {
+  name: String!
+}
+
+input CreateImageInput {
+  imageKey: String!
+  imageUrl: String!
+  productId: String
+  variantId: String
+}
+
+input CreateProductWithVariantsInput {
+  basePrice: Int!
+  categoryId: String!
+  description: String
+  name: String!
+  variants: [CreateVariantInput!]!
+}
+
+input CreatePromoCodeInput {
+  """
+  Products or variants this code applies to. Pass an empty array to create a store-wide code.
+  """
+  applications: [PromoCodeApplicationInput!]!
+
+  """Campaign to associate this code with."""
+  campaignId: ID
+
+  """The unique code string customers enter at checkout."""
+  code: String!
+  discountType: DiscountType!
+
+  """
+  For PERCENTAGE: percentage points (e.g. 10 = 10%). For FIXED: the discount amount in cents.
+  """
+  discountValue: Int!
+
+  """UTC datetime after which the code is no longer redeemable."""
+  expirationDate: DateTime!
+
+  """Minimum cart total in cents required to apply this code."""
+  minPurchaseAmountCents: Int
+
+  """Maximum total redemptions. Omit for unlimited usage."""
+  usageLimit: Int
+}
+
+input CreateShippingAddressInput {
+  """Additional delivery instructions."""
+  additionalDescription: String
+  city: String!
+  country: String!
+
+  """Optional label, e.g. "Home" or "Office"."""
+  label: String
+
+  """Contact phone number for the recipient."""
+  phoneNumber: String!
+
+  """Full name of the person receiving the order."""
+  recipientName: String!
+  state: String!
+  street: String!
+}
+
+input CreateVariantInput {
+  """Attribute IDs (values like "Red", "S") to assign to this variant."""
+  attributeValueIds: [String!]!
+
+  """S3 image keys (from getSignedUrl) to link to this variant."""
+  imageKeys: [String!]!
+  priceCents: Int!
+  stock: Int!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+"""
+Whether the discount deducts a fixed cent amount or a percentage of the eligible subtotal.
+"""
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+input GetSignedUrlInput {
+  contentType: String!
+  fileName: String!
+}
+
+type Image {
+  createdAt: DateTime!
+  id: ID!
+  imageUrl: String!
+}
+
+input InsertAttributesWithCategoryInput {
+  """
+  Existing attribute category ID (Case B). Omit to create a new one (Case A).
+  """
+  attributeCategoryId: String
+
+  """Name for the new attribute category (required for Case A)."""
+  name: String
+
+  """List of attribute values to create as children."""
+  values: [String!]!
+}
+
+type Like {
+  createdAt: DateTime!
+  id: ID!
+  productVariantId: String!
+  userId: String!
+}
+
+type Mutation {
+  """
+  Adds a product variant to the authenticated client's cart. If the variant is already in the cart, its quantity is incremented. Throws if stock is insufficient or the variant is inactive.
+  """
+  addItemToCart(data: AddItemToCartInput!): CartItem!
+
+  """
+  Appends new variants (with attributes and images) to an existing product. Runs in a transaction.
+  """
+  addVariantsToProduct(data: AddVariantsInput!, productId: ID!): Product!
+
+  """
+  Cancels the authenticated client's own order. Only orders in pending, paid, or processing status can be cancelled — shipped, delivered, and already-cancelled orders are rejected.
+  """
+  cancelMyOrder(orderId: ID!): Order!
+
+  """
+  Hard-deletes all items from the authenticated client's cart. Returns the number of deleted items.
+  """
+  clearCart: Int!
+
+  """
+  Creates a new attribute category with its attributes (Case A: provide name + values), or appends attributes to an existing category (Case B: provide attributeCategoryId + values). Runs in a transaction.
+  """
+  createAttributesWithCategory(data: InsertAttributesWithCategoryInput!): AttributeCategory!
+
+  """Creates a new product category."""
+  createCategory(data: CreateCategoryInput!): Category!
+
+  """
+  Creates an image record in the database after the file has been uploaded to S3.
+  """
+  createImage(data: CreateImageInput!): Image!
+
+  """
+  Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute codes.
+  """
+  createProduct(data: CreateProductWithVariantsInput!): Product!
+
+  """
+  Creates a new promo code and its product/variant scope rules. Pass an empty applications array for a store-wide code. Restricted to managers.
+  """
+  createPromoCode(data: CreatePromoCodeInput!): PromoCode!
+
+  """Saves a new shipping address for the authenticated user."""
+  createShippingAddress(data: CreateShippingAddressInput!): ShippingAddress!
+
+  """
+  Permanently deletes an attribute. Blocked if the attribute is currently assigned to any product variant — disable the affected variants first.
+  """
+  deleteAttribute(id: ID!): Attribute!
+
+  """
+  Permanently deletes an attribute category. Blocked if any of its attributes are assigned to product variants — disable the affected variants first.
+  """
+  deleteAttributeCategory(id: ID!): AttributeCategory!
+
+  """
+  Permanently deletes a category. Blocked if any products are currently assigned to it — reassign or disable those products first.
+  """
+  deleteCategory(id: ID!): Category!
+
+  """Deletes an image from both S3 and the database."""
+  deleteImage(id: ID!): Image!
+
+  """
+  Permanently deletes a shipping address. Only the owner of the address may delete it.
+  """
+  deleteShippingAddress(id: ID!): ShippingAddress!
+
+  """
+  Soft-deletes a product by setting isActive to false. The product and its variants are hidden from listings but preserved in the database for historical integrity.
+  """
+  disableProduct(id: ID!): Product!
+
+  """
+  Soft-deletes a variant by setting isActive to false. Use this to retire a variant with incorrect attributes before adding the correct replacement via addVariantsToProduct.
+  """
+  disableProductVariant(id: ID!): ProductVariant!
+
+  """
+  Generates a pre-signed URL for uploading an image to S3. The client should use this URL to PUT the file directly to S3. Allowed ContentType: image/png, image/jpeg, image/webp
+  """
+  getSignedUrl(data: GetSignedUrlInput!): SignedUrlResponse!
+
+  """
+  Initiates a cart checkout for the authenticated user. Validates stock availability, creates a pending order in the database, and returns a Stripe client_secret for the frontend to complete payment using the Stripe Payment Element.
+  """
+  initiateCheckout(promoCode: String, shippingAddressId: ID!): CheckoutPayload!
+
+  """Likes a product variant. A client can only like a given variant once."""
+  likeVariant(productVariantId: ID!): Like!
+
+  """
+  Marks a shipped order as delivered. The order must be assigned to the authenticated delivery person and currently in shipped status. Restricted to delivery role.
+  """
+  markOrderAsDelivered(orderId: ID!): Order!
+
+  """
+  Advances a single order from processing to shipped. The order must be in processing status — any other state is rejected with an explanation of why the transition is invalid. Restricted to managers.
+  """
+  markOrderAsShipped(orderId: ID!): Order!
+
+  """
+  Assigns a delivery driver to a batch of paid orders and advances their status to processing. All orders must currently be in paid status — if any are not, the entire batch is rejected. Restricted to managers.
+  """
+  markOrdersAsProcessing(data: AssignDeliveryInput!): Int!
+
+  """Hard-deletes a product variant from the authenticated client's cart."""
+  removeItemFromCart(productVariantId: ID!): CartItem!
+
+  """
+  Flips the isActive flag of a promo code. Deactivating prevents any further redemptions without deleting the record. Restricted to managers.
+  """
+  togglePromoCode(id: ID!): PromoCode!
+
+  """Removes a like from a product variant."""
+  unlikeVariant(productVariantId: ID!): Like!
+
+  """
+  Updates the displayName of an attribute. The code field is immutable and cannot be changed — it is generated once at creation time and is baked into all existing SKUs.
+  """
+  updateAttribute(data: UpdateAttributeInput!, id: ID!): Attribute!
+
+  """Updates the name of an attribute category."""
+  updateAttributeCategory(data: UpdateAttributeCategoryInput!, id: ID!): AttributeCategory!
+
+  """
+  Sets the quantity of a cart item to an absolute value. Use this to change the quantity from any number to another (e.g. 5 → 1). Throws if the item is not in the cart or stock is insufficient.
+  """
+  updateCartItemQuantity(data: UpdateCartItemInput!): CartItem!
+
+  """Updates a product category name."""
+  updateCategory(data: CreateCategoryInput!, id: ID!): Category!
+
+  """
+  Updates a product's name, description, basePrice, or category. Only the provided fields are changed. Existing variant SKUs are not affected.
+  """
+  updateProduct(data: UpdateProductInput!, id: ID!): Product!
+
+  """
+  Updates a variant's stock or price. The SKU is immutable and cannot be changed — it is generated once at creation time from the product name and attribute codes.
+  """
+  updateProductVariant(data: UpdateProductVariantInput!, id: ID!): ProductVariant!
+
+  """
+  Updates fields on an existing shipping address. Only the owner of the address may update it.
+  """
+  updateShippingAddress(data: UpdateShippingAddressInput!): ShippingAddress!
+}
+
+input MyOrdersFilterInput {
+  """Return orders created on or after this date."""
+  fromDate: DateTime
+
+  """Maximum number of orders to return."""
+  limit: Int = 10
+
+  """Maximum order total in cents (inclusive)."""
+  maxAmountCents: Int
+
+  """Minimum order total in cents (inclusive)."""
+  minAmountCents: Int
+
+  """Number of orders to skip."""
+  offset: Int = 0
+
+  """Filter by a specific order status."""
+  status: OrderState
+
+  """Return orders created on or before this date."""
+  toDate: DateTime
+}
+
+type Order {
+  assignedDeliveryId: String
+  createdAt: DateTime!
+  currentStatus: OrderState!
+
+  """Discount applied in cents."""
+  discountAmountCents: Int!
+  guestEmail: String
+  id: ID!
+
+  """Line items included in this order."""
+  items: [OrderItem!]
+  paymentMethodType: PaymentMethodType!
+
+  """Payment attempts associated with this order."""
+  payments: [Payment!]
+  shippingAddress: ShippingAddress
+  shippingAddressId: String
+
+  """Full status transition history for this order."""
+  statuses: [OrderStatus!]
+
+  """Order total in cents."""
+  totalAmountCents: Int!
+  updatedAt: DateTime!
+  userId: String
+}
+
+type OrderItem {
+  """Item-level discount in cents, if any."""
+  discountAmountCents: Int
+  id: ID!
+  orderId: String!
+
+  """Unit price at time of purchase, in cents."""
+  priceAtPurchaseCents: Int!
+  quantity: Int!
+  variant: ProductVariant
+  variantId: String!
+}
+
+"""The lifecycle state of an order."""
+enum OrderState {
+  cancelled
+  delivered
+  paid
+  pending
+  processing
+  shipped
+}
+
+type OrderStatus {
+  createdAt: DateTime!
+  id: ID!
+  orderId: String!
+  status: OrderState!
+}
+
+type Payment {
+  """Amount charged in cents."""
+  amountCents: Int!
+  createdAt: DateTime!
+
+  """ISO 4217 currency code, e.g. "usd"."""
+  currency: String!
+  id: ID!
+  orderId: String!
+  status: PaymentStatus!
+  stripePaymentAttemptId: String
+  updatedAt: DateTime!
+}
+
+"""The Stripe payment method used to place the order."""
+enum PaymentMethodType {
+  payment_intent
+  payment_link
+}
+
+"""The status of a Stripe payment attempt."""
+enum PaymentStatus {
+  failed
+  processing
+  refunded
+  succeeded
+}
+
+type Product {
+  basePrice: Int!
+  category: Category
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  images: [Image!]
+  isActive: Boolean!
+  name: String!
+  updatedAt: DateTime!
+  variants: [ProductVariant!]
+}
+
+type ProductVariant {
+  id: ID!
+  images: [Image!]
+  isActive: Boolean!
+  priceCents: Int!
+  productId: String!
+  sku: String!
+  stock: Int!
+  stripePaymentLinkId: String
+
+  """Shareable Stripe Payment Link URL for single-product purchases."""
+  stripePaymentLinkUrl: String
+  stripePriceId: String
+  stripeProductId: String
+  updatedAt: DateTime!
+  variantAttributes: [VariantAttributeCategory!]
+}
+
+type PromoCode {
+  """
+  Scope rules defining which products/variants are eligible. Empty = store-wide.
+  """
+  applications: [PromoCodeApplication!]!
+  campaignId: ID
+
+  """The code string customers enter at checkout."""
+  code: String!
+  createdAt: DateTime!
+  discountType: DiscountType!
+
+  """
+  For PERCENTAGE: percentage points (e.g. 10 = 10%). For FIXED: the discount amount in cents.
+  """
+  discountValue: Int!
+  expirationDate: DateTime!
+  id: ID!
+  isActive: Boolean!
+
+  """Minimum cart total in cents required to redeem this code."""
+  minPurchaseAmountCents: Int
+  updatedAt: DateTime!
+
+  """Maximum total redemptions allowed. Null means unlimited."""
+  usageLimit: Int
+  usedCount: Int!
+}
+
+type PromoCodeApplication {
+  id: ID!
+
+  """The product this rule targets."""
+  productId: ID!
+
+  """
+  When set, only this specific variant is eligible. When null, all variants of the product are eligible.
+  """
+  productVariantId: ID
+  promoCodeId: ID!
+}
+
+input PromoCodeApplicationInput {
+  """Product this rule targets."""
+  productId: ID!
+
+  """
+  Specific variant to restrict to. Omit to cover all variants of the product.
+  """
+  productVariantId: ID
+}
+
+type Query {
+  """
+  Returns all attribute categories (e.g. Color, Size) along with their nested attributes.
+  """
+  attributeCategories: [AttributeCategory!]!
+
+  """
+  Fetches a single attribute category by its ID, including its nested attributes.
+  """
+  attributeCategory(id: ID!): AttributeCategory!
+
+  """
+  Returns all items in the authenticated client's cart, ordered by insertion date.
+  """
+  cart: [CartItem!]!
+
+  """Returns all product categories."""
+  categories: [Category!]!
+
+  """Returns all shipping addresses saved by the authenticated user."""
+  myAddresses: [ShippingAddress!]!
+
+  """
+  Returns all orders assigned to the authenticated delivery person that are currently in shipped status. Restricted to delivery role.
+  """
+  myAssignedDeliveries: [Order!]!
+
+  """
+  Returns all product variants liked by the currently authenticated client.
+  """
+  myLikes: [Like!]!
+
+  """Returns all orders placed by the authenticated client."""
+  myOrders(filters: MyOrdersFilterInput): [Order!]!
+
+  """Returns all orders in the system. Restricted to managers."""
+  orders: [Order!]!
+
+  """Fetches a single active product by its ID."""
+  product(id: ID!): Product!
+
+  """Fetches a single product variant by its ID."""
+  productVariant(id: ID!): ProductVariant!
+
+  """
+  Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10
+  """
+  products(skip: Int! = 0, take: Int! = 10): [Product!]!
+}
+
+type ShippingAddress {
+  additionalDescription: String
+  city: String!
+  country: String!
+  createdAt: DateTime!
+  id: ID!
+
+  """
+  e.g. "Home" or "Office"
+  """
+  label: String
+  phoneNumber: String!
+  recipientName: String!
+  state: String!
+  street: String!
+  updatedAt: DateTime!
+}
+
+type SignedUrlResponse {
+  key: String!
+  publicUrl: String!
+  signedUrl: String!
+}
+
+input UpdateAttributeCategoryInput {
+  name: String
+}
+
+input UpdateAttributeInput {
+  """Human-readable label shown in the UI. Does not affect SKUs."""
+  displayName: String
+}
+
+input UpdateCartItemInput {
+  """ID of the product variant to update in the cart."""
+  productVariantId: ID!
+
+  """
+  New absolute quantity. Must be a positive integer. Use removeItemFromCart to delete the item entirely.
+  """
+  quantity: Int!
+}
+
+input UpdateProductInput {
+  basePrice: Int
+  categoryId: String
+  description: String
+  name: String
+}
+
+input UpdateProductVariantInput {
+  priceCents: Int
+  stock: Int
+}
+
+input UpdateShippingAddressInput {
+  """Additional delivery instructions."""
+  additionalDescription: String
+  city: String
+  country: String
+
+  """ID of the address to update."""
+  id: ID!
+
+  """Optional label, e.g. "Home" or "Office"."""
+  label: String
+
+  """Contact phone number for the recipient."""
+  phoneNumber: String
+
+  """Full name of the person receiving the order."""
+  recipientName: String
+  state: String
+  street: String
+}
+
+type VariantAttributeCategory {
+  attribute: Attribute
+  attributeId: String!
+  id: ID!
+  variantId: String!
+}

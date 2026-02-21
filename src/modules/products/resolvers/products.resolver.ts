@@ -1,0 +1,114 @@
+import { UseGuards } from '@nestjs/common';
+import { Resolver, Query, Mutation, Args, ID, Int, ResolveField, Parent } from '@nestjs/graphql';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard.js';
+import { PoliciesGuard } from '../../../common/guards/policies.guard.js';
+import { CheckPolicies } from '../../../common/decorators/check-policies.decorator.js';
+import { Action } from '../../../common/casl/casl.types.js';
+import { Product } from '../models/product.model.js';
+import { ProductVariant } from '../models/product-variant.model.js';
+import { Image } from '../models/image.model.js';
+import { Category } from '../../categories/models/category.model.js';
+import { ProductsService } from '../services/products.service.js';
+import { CreateProductWithVariantsInput } from '../dto/create-product-with-variants.input.js';
+import { AddVariantsInput } from '../dto/add-variants.input.js';
+import { UpdateProductInput } from '../dto/update-product.input.js';
+import { ProductVariantsLoader } from '../loaders/product-variants.loader.js';
+import { CategoryLoader } from '../loaders/category.loader.js';
+import { ProductImagesLoader } from '../loaders/product-images.loader.js';
+
+@Resolver(() => Product)
+export class ProductsResolver {
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly productVariantsLoader: ProductVariantsLoader,
+    private readonly categoryLoader: CategoryLoader,
+    private readonly productImagesLoader: ProductImagesLoader,
+  ) {}
+
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
+  @Query(() => [Product], {
+    name: 'products',
+    description:
+      'Fetches data from products, it works with paginations, with two parameters. skip: means the current page and take: the range of records. By default: skip: 0, take: 10',
+  })
+  async findAll(
+    @Args('skip', { type: () => Int, defaultValue: 0 }) skip: number,
+    @Args('take', { type: () => Int, defaultValue: 10 }) take: number,
+  ) {
+    return this.productsService.findAll(skip, take);
+  }
+
+  @Query(() => Product, {
+    name: 'product',
+    description: 'Fetches a single active product by its ID.',
+  })
+  async findOne(@Args('id', { type: () => ID }) id: string) {
+    return this.productsService.findOne(id);
+  }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
+
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Create, Product))
+  @Mutation(() => Product, {
+    description:
+      'Creates a product with its variants, attribute mappings, and images in a single atomic transaction. SKU is auto-generated from product name + sorted attribute codes.',
+  })
+  async createProduct(@Args('data') data: CreateProductWithVariantsInput) {
+    return this.productsService.createWithVariants(data);
+  }
+
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Create, Product))
+  @Mutation(() => Product, {
+    description:
+      'Appends new variants (with attributes and images) to an existing product. Runs in a transaction.',
+  })
+  async addVariantsToProduct(
+    @Args('productId', { type: () => ID }) productId: string,
+    @Args('data') data: AddVariantsInput,
+  ) {
+    return this.productsService.addVariants(productId, data);
+  }
+
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Update, Product))
+  @Mutation(() => Product, {
+    description:
+      'Updates a product\'s name, description, basePrice, or category. Only the provided fields are changed. Existing variant SKUs are not affected.',
+  })
+  async updateProduct(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('data') data: UpdateProductInput,
+  ) {
+    return this.productsService.update(id, data);
+  }
+
+  @UseGuards(JwtAuthGuard, PoliciesGuard)
+  @CheckPolicies((ability) => ability.can(Action.Delete, Product))
+  @Mutation(() => Product, {
+    description:
+      'Soft-deletes a product by setting isActive to false. The product and its variants are hidden from listings but preserved in the database for historical integrity.',
+  })
+  async disableProduct(@Args('id', { type: () => ID }) id: string) {
+    return this.productsService.disable(id);
+  }
+
+  // ─── Field Resolvers ─────────────────────────────────────────────────────────
+
+  @ResolveField(() => [ProductVariant], { nullable: true })
+  async variants(@Parent() product: Product) {
+    return this.productVariantsLoader.loader.load(product.id);
+  }
+
+  @ResolveField(() => Category, { nullable: true })
+  async category(@Parent() product: Product & { categoryId: string }) {
+    return this.categoryLoader.loader.load(product.categoryId);
+  }
+
+  @ResolveField(() => [Image], { nullable: true })
+  async images(@Parent() product: Product) {
+    return this.productImagesLoader.loader.load(product.id);
+  }
+}

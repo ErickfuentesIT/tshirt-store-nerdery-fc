@@ -1,8 +1,52 @@
+import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module.js';
+import { CustomConfigService } from './common/config/config.service.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const configService = app.get(CustomConfigService);
+
+  // ── Security headers ────────────────────────────────────────────────────────
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
+  // ── CORS ────────────────────────────────────────────────────────────────────
+
+  const { origins } = configService.cors;
+  app.enableCors({
+    origin: origins,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  });
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true })); // Pipe that validates incoming requests against their DTOs
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('T-Shirt Store API')
+    .setDescription('REST API documentation for the T-Shirt Store')
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'refresh-token',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const port: number = configService.app.port;
+  await app.listen(port);
 }
 bootstrap();
