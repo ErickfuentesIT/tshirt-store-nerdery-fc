@@ -36,8 +36,10 @@ export class CustomConfigService {
 
   get sendgrid() {
     return {
-      apiKey: this.configService.getOrThrow<string>('SENDGRID_API_KEY'),
-      fromEmail: this.configService.getOrThrow<string>('SENDGRID_FROM_EMAIL'),
+      apiKey:                   this.configService.getOrThrow<string>('SENDGRID_API_KEY'),
+      fromEmail:                this.configService.getOrThrow<string>('SENDGRID_FROM_EMAIL'),
+      lowStockTemplateId:       this.configService.getOrThrow<string>('SENDGRID_LOW_STOCK_TEMPLATE_ID'),
+      forgetPasswordTemplateId: this.configService.getOrThrow<string>('SENDGRID_FORGET_PASSWORD_TEMPLATE_ID')
     };
   }
 

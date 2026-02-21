@@ -5,7 +5,7 @@ export const configValidationSchema = Joi.object({
   JWT_ACCESS_SECRET: Joi.string().required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string()
     .regex(/^(\d+(ms|s|m|h|d|w|y))$/) // This regex ensure values like "15m", "1h", "7d"
-    .required(), 
+    .required(),
   JWT_REFRESH_SECRET: Joi.string().required(),
   JWT_REFRESH_EXPIRES_IN: Joi.string()
     .regex(/^(\d+(ms|s|m|h|d|w|y))$/) // This regex ensure values like "15m", "1h", "7d"
@@ -15,6 +15,8 @@ export const configValidationSchema = Joi.object({
   PASSWORD_RESET_TTL: Joi.string()
     .regex(/^(\d+(ms|s|m|h|d|w|y))$/)
     .default('15m'),
+  SENDGRID_FORGET_PASSWORD_TEMPLATE_ID: Joi.string().required(),
+  SENDGRID_LOW_STOCK_TEMPLATE_ID: Joi.string().required(),
   AWS_REGIONS: Joi.string().required(),
   AWS_ACCESS_KEY_ID: Joi.string().required(),
   AWS_SECRET_ACCESS_KEY: Joi.string().required(),

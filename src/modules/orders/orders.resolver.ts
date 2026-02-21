@@ -172,4 +172,5 @@ export class OrdersResolver {
   ) {
     return this.ordersService.markOrderAsDelivered(orderId, user.userId);
   }
+
 }

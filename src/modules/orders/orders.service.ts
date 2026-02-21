@@ -1,16 +1,24 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { MyOrdersFilterInput } from './dto/my-orders-filter.input.js';
 import type { AssignDeliveryInput } from './dto/assign-delivery.input.js';
 import Stripe from 'stripe';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { StripeService } from '../../common/stripe/stripe.service.js';
 import { validateStock } from './helpers/validate-stock.helper.js';
+import { StockNotificationService } from './stock-notification.service.js';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
+    private readonly stockNotificationService: StockNotificationService,
   ) {}
 
   // ─── Queries ──────────────────────────────────────────────────────────────
@@ -39,7 +47,7 @@ export class OrdersService {
           ? {
               createdAt: {
                 ...(fromDate ? { gte: fromDate } : {}),
-                ...(toDate   ? { lte: toDate }   : {}),
+                ...(toDate ? { lte: toDate } : {}),
               },
             }
           : {}),
@@ -47,8 +55,12 @@ export class OrdersService {
         ...(minAmountCents !== undefined || maxAmountCents !== undefined
           ? {
               totalAmountCents: {
-                ...(minAmountCents !== undefined ? { gte: minAmountCents } : {}),
-                ...(maxAmountCents !== undefined ? { lte: maxAmountCents } : {}),
+                ...(minAmountCents !== undefined
+                  ? { gte: minAmountCents }
+                  : {}),
+                ...(maxAmountCents !== undefined
+                  ? { lte: maxAmountCents }
+                  : {}),
               },
             }
           : {}),
@@ -138,16 +150,17 @@ export class OrdersService {
     //    every other state so the caller always knows what went wrong and why.
     if (order.currentStatus !== 'processing') {
       const reason: Record<string, string> = {
-        pending:   'it has not been paid yet',
-        paid:      'it has been paid but not yet assigned to a delivery driver — run markOrdersAsProcessing first',
-        shipped:   'it has already been shipped',
+        pending: 'it has not been paid yet',
+        paid: 'it has been paid but not yet assigned to a delivery driver — run markOrdersAsProcessing first',
+        shipped: 'it has already been shipped',
         delivered: 'it has already been delivered',
         cancelled: 'it has been cancelled and cannot be fulfilled',
       };
 
       throw new BadRequestException(
         `Order "${orderId}" cannot be marked as shipped because ` +
-          (reason[order.currentStatus] ?? `its current status is "${order.currentStatus}"`),
+          (reason[order.currentStatus] ??
+            `its current status is "${order.currentStatus}"`),
       );
     }
 
@@ -206,16 +219,18 @@ export class OrdersService {
     // An order must be in 'shipped' status to be marked as delivered.
     if (order.currentStatus !== 'shipped') {
       const reason: Record<string, string> = {
-        pending:    'it has not been paid yet',
-        paid:       'it has not been assigned to a delivery driver yet',
-        processing: 'it has been assigned but not yet dispatched — wait for it to be marked shipped',
-        delivered:  'it has already been delivered',
-        cancelled:  'it has been cancelled',
+        pending: 'it has not been paid yet',
+        paid: 'it has not been assigned to a delivery driver yet',
+        processing:
+          'it has been assigned but not yet dispatched — wait for it to be marked shipped',
+        delivered: 'it has already been delivered',
+        cancelled: 'it has been cancelled',
       };
 
       throw new BadRequestException(
         `Order "${orderId}" cannot be marked as delivered because ` +
-          (reason[order.currentStatus] ?? `its current status is "${order.currentStatus}"`),
+          (reason[order.currentStatus] ??
+            `its current status is "${order.currentStatus}"`),
       );
     }
 
@@ -269,14 +284,15 @@ export class OrdersService {
 
     if (nonCancellableStatuses.includes(order.currentStatus)) {
       const reason: Record<string, string> = {
-        shipped:   'it has already been shipped and is out for delivery',
+        shipped: 'it has already been shipped and is out for delivery',
         delivered: 'it has already been delivered',
         cancelled: 'it has already been cancelled',
       };
 
       throw new BadRequestException(
         `Order "${orderId}" cannot be cancelled because ` +
-          (reason[order.currentStatus] ?? `its current status is "${order.currentStatus}"`),
+          (reason[order.currentStatus] ??
+            `its current status is "${order.currentStatus}"`),
       );
     }
 
@@ -499,6 +515,16 @@ export class OrdersService {
         ? fullSession.payment_intent
         : (fullSession.payment_intent?.id ?? null);
 
+    // Capture notification data after the transaction so we can dispatch the
+    // job without coupling the queue call to the DB transaction.
+    let notificationData: {
+      variantId: string;
+      oldStock: number;
+      newStock: number;
+      productName: string;
+      imageUrl: string | null;
+    } | null = null;
+
     // ── Atomic transaction ───────────────────────────────────────────────────
     await this.prisma.$transaction(async (tx) => {
       // a. Re-read the variant inside the transaction to acquire a row-level
@@ -506,12 +532,29 @@ export class OrdersService {
       //    between concurrent webhook deliveries for the same variant.
       const lockedVariant = await tx.productVariant.findUnique({
         where: { id: variant.id },
+        select: {
+          stock: true,
+          product: { select: { name: true } },
+          images: {
+            take: 1,
+            orderBy: { createdAt: 'asc' },
+            select: { imageUrl: true },
+          },
+        },
       });
       if (!lockedVariant || lockedVariant.stock <= 0) {
         throw new BadRequestException(
           `SKU "${variant.sku}" is out of stock. The order cannot be fulfilled.`,
         );
       }
+
+      notificationData = {
+        variantId: variant.id,
+        oldStock: lockedVariant.stock,
+        newStock: lockedVariant.stock - 1,
+        productName: lockedVariant.product.name,
+        imageUrl: lockedVariant.images[0]?.imageUrl ?? null,
+      };
 
       // a. Decrement stock by exactly 1 (Payment Links are single-unit).
       await tx.productVariant.update({
@@ -579,6 +622,21 @@ export class OrdersService {
         },
       });
     });
+
+    // Dispatch low-stock notification if the threshold was crossed.
+    // This runs *after* the transaction commits so the queue job is never
+    // enqueued for a DB write that was ultimately rolled back.
+    if (notificationData) {
+      const { variantId, oldStock, newStock, productName, imageUrl } =
+        notificationData;
+      await this.stockNotificationService.checkAndDispatchLowStock(
+        variantId,
+        oldStock,
+        newStock,
+        productName,
+        imageUrl,
+      );
+    }
   }
 
   // ─── Method B: Webhook Handler ────────────────────────────────────────────
@@ -603,6 +661,16 @@ export class OrdersService {
 
     if (!order || order.currentStatus === 'paid') return;
 
+    // Collect notification candidates while inside the transaction so we have
+    // accurate oldStock/newStock values before the row is committed.
+    const notificationBatch: Array<{
+      variantId: string;
+      oldStock: number;
+      newStock: number;
+      productName: string;
+      imageUrl: string | null;
+    }> = [];
+
     // Everything below runs inside a single Postgres transaction.
     // If any operation throws, the entire block is rolled back atomically.
     // This is critical: we must never decrement stock without also marking
@@ -615,9 +683,32 @@ export class OrdersService {
       //    so concurrent checkouts for the same variant are serialized
       //    by Postgres row-level locks.
       for (const item of orderItems) {
+        // Read current stock + product details before decrementing so we can
+        // evaluate the low-stock threshold after the transaction commits.
+        const variant = await tx.productVariant.findUniqueOrThrow({
+          where: { id: item.variantId },
+          select: {
+            stock: true,
+            product: { select: { name: true } },
+            images: {
+              take: 1,
+              orderBy: { createdAt: 'asc' },
+              select: { imageUrl: true },
+            },
+          },
+        });
+
         await tx.productVariant.update({
           where: { id: item.variantId },
           data: { stock: { decrement: item.quantity } },
+        });
+
+        notificationBatch.push({
+          variantId: item.variantId,
+          oldStock: variant.stock,
+          newStock: variant.stock - item.quantity,
+          productName: variant.product.name,
+          imageUrl: variant.images[0]?.imageUrl ?? null,
         });
       }
 
@@ -652,5 +743,21 @@ export class OrdersService {
         await tx.cartItem.deleteMany({ where: { userId } });
       }
     });
+
+    // Dispatch low-stock notifications after the transaction commits.
+    // Using Promise.all is safe here: each call only enqueues a Redis job
+    // and does not touch the DB.
+    await Promise.all(
+      notificationBatch.map(
+        ({ variantId, oldStock, newStock, productName, imageUrl }) =>
+          this.stockNotificationService.checkAndDispatchLowStock(
+            variantId,
+            oldStock,
+            newStock,
+            productName,
+            imageUrl,
+          ),
+      ),
+    );
   }
 }
