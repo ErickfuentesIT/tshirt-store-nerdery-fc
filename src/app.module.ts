@@ -21,6 +21,7 @@ import { PrismaClientExceptionFilter } from './common/filters/prisma-exception.f
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { ShippingAddressesModule } from './modules/shipping-addresses/shipping-addresses.module.js';
 import { BullMQModule } from './common/bullmq/bullmq.module.js';
+import { PromoCodesModule } from './modules/promo-codes/promo-codes.module.js';
 @Module({
   imports: [
     CustomConfigModule,
@@ -50,6 +51,7 @@ import { BullMQModule } from './common/bullmq/bullmq.module.js';
     OrdersModule,
     ShippingAddressesModule,
     BullMQModule,
+    PromoCodesModule,
   ],
   providers: [
     {

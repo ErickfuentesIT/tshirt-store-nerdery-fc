@@ -13,7 +13,6 @@ export class CaslAbilityFactory {
 
     if (user.role === 'manager') {
       can(Action.Manage, 'all');
-      // managers run the store — liking products, managing carts, and placing orders are client-only actions
       cannot(Action.Manage, Like);
       cannot(Action.Manage, CartItem);
       cannot(Action.Create, Order);
@@ -30,20 +29,10 @@ export class CaslAbilityFactory {
       can(Action.Update, ShippingAddress);
       can(Action.Delete, ShippingAddress);
       can(Action.Create, Order);
-      // Scope Order access to the client's own orders.
-      // `cannot` overrides the broad `can(Read, 'all')` for Order specifically;
-      // the subsequent `can` restores read with a userId condition.
-      // CASL evaluates rules in definition order — later rules take precedence.
       cannot(Action.Read, Order);
       can(Action.Read, Order, { userId: user.userId });
       can(Action.Update, Order, { userId: user.userId });
     } else if (user.role === 'delivery') {
-      // Delivery persons may only see and update orders that are assigned to
-      // them AND currently in 'shipped' status.
-      // These conditions are evaluated by CASL when ability.can() is called
-      // with an actual Order instance (e.g. in service-level checks).
-      // The PoliciesGuard uses a subject-type check (no instance), which acts
-      // as a coarse first layer; the service enforces the full conditions.
       can(Action.Read, Order, {
         assignedDeliveryId: user.userId,
         currentStatus: OrderState.shipped,

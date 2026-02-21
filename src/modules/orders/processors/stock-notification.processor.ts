@@ -4,7 +4,7 @@ import { Job } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { EmailService } from '../../../common/email/email.service.js';
 import { STOCK_NOTIFICATION_QUEUE } from '../constants/queue.constants.js';
-import type { LowStockNotificationJob } from '../interfaces/stock-notification-job.interface.js';
+import type { LowStockNotificationJob } from '../types/stock-notification-job.type.js';
 
 @Processor(STOCK_NOTIFICATION_QUEUE)
 export class StockNotificationProcessor extends WorkerHost {

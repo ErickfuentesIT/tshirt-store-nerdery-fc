@@ -25,6 +25,8 @@ export class ProductsResolver {
     private readonly productImagesLoader: ProductImagesLoader,
   ) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
   @Query(() => [Product], {
     name: 'products',
     description:
@@ -44,6 +46,8 @@ export class ProductsResolver {
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.productsService.findOne(id);
   }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @UseGuards(JwtAuthGuard, PoliciesGuard)
   @CheckPolicies((ability) => ability.can(Action.Create, Product))
@@ -91,7 +95,7 @@ export class ProductsResolver {
     return this.productsService.disable(id);
   }
 
-  // ── Field resolvers ────────────────────────────────────────────────────────
+  // ─── Field Resolvers ─────────────────────────────────────────────────────────
 
   @ResolveField(() => [ProductVariant], { nullable: true })
   async variants(@Parent() product: Product) {

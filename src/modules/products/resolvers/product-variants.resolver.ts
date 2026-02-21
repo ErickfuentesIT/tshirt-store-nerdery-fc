@@ -21,6 +21,8 @@ export class ProductVariantsResolver {
     private readonly variantImagesLoader: VariantImagesLoader,
   ) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Read, ProductVariant))
   @Query(() => ProductVariant, {
     name: 'productVariant',
@@ -29,6 +31,8 @@ export class ProductVariantsResolver {
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.productVariantsService.findOne(id);
   }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Update, ProductVariant))
   @Mutation(() => ProductVariant, {
@@ -51,7 +55,7 @@ export class ProductVariantsResolver {
     return this.productVariantsService.disable(id);
   }
 
-  // ── Field resolvers ────────────────────────────────────────────────────────
+  // ─── Field Resolvers ─────────────────────────────────────────────────────────
 
   @ResolveField(() => [VariantAttributeCategory], { nullable: true })
   async variantAttributes(@Parent() variant: ProductVariant) {

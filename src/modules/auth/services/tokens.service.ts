@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { v4 as uuidv4 } from 'uuid';
 import { TokenType } from '@prisma/client';
+import { calculateExpiryDate } from '../helper/calculate-expiry-date.helper.js';
 
 @Injectable()
 export class TokensService {
@@ -9,7 +10,7 @@ export class TokensService {
 
   async createRefreshToken(userId: string, ttl: string) {
     const tokenId = uuidv4();
-    const expiresAt = this.calculateExpiryDate(ttl);
+    const expiresAt = calculateExpiryDate(ttl);
 
     const token = await this.prisma.jwtToken.create({
       data: {
@@ -58,7 +59,7 @@ export class TokensService {
     });
 
     const tokenId = uuidv4();
-    const expiresAt = this.calculateExpiryDate(ttl);
+    const expiresAt = calculateExpiryDate(ttl);
 
     const token = await this.prisma.jwtToken.create({
       data: {
@@ -82,19 +83,5 @@ export class TokensService {
         expiresAt: { gt: new Date() },
       },
     });
-  }
-
-  private calculateExpiryDate(ttl: string): Date {
-    const numeric = parseInt(ttl);
-    const unit = ttl.slice(-1);
-    const now = new Date();
-
-    if (unit === 'd') now.setDate(now.getDate() + numeric);
-    else if (unit === 'h') now.setHours(now.getHours() + numeric);
-    else if (unit === 'm') now.setMinutes(now.getMinutes() + numeric);
-    else if (unit === 's') now.setSeconds(now.getSeconds() + numeric);
-    else now.setDate(now.getDate() + 7); // Default fallback
-
-    return now;
   }
 }

@@ -15,6 +15,8 @@ import { CreateImageInput } from '../dto/create-image.input.js';
 export class ImagesResolver {
   constructor(private readonly imagesService: ImagesService) {}
 
+  // ─── Mutations ───────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Create, Image))
   @Mutation(() => SignedUrlResponse, {
     description:

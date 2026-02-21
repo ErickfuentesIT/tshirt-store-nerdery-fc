@@ -38,12 +38,8 @@ export class ShippingAddressesService {
     return this.prisma.shippingAddress.delete({ where: { id } });
   }
 
-  // ─── Private helpers ────────────────────────────────────────────────────────
+  // ─── Private helper ────────────────────────────────────────────────────────
 
-  // Fetches an address by ID and verifies it belongs to the requesting user.
-  // Used by update and remove to enforce ownership at the service layer,
-  // independent of CASL, so that a client can never touch another user's address
-  // even if they somehow know the ID.
   private async findOwnOrThrow(id: string, userId: string) {
     const address = await this.prisma.shippingAddress.findUnique({
       where: { id },

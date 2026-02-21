@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { CartItemWithVariant } from '../types/cartItemWithVariant.type.js';
+import { CartItemWithVariant } from '../types/cart-item-with-variant.type.js';
 
 export function validateStock(cartItems: CartItemWithVariant[]): void {
   for (const item of cartItems) {

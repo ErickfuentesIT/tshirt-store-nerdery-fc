@@ -21,6 +21,9 @@ export class CartResolver {
     private readonly cartItemVariantLoader: CartItemVariantLoader,
   ) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
+
   @CheckPolicies((ability) => ability.can(Action.Read, CartItem))
   @Query(() => [CartItem], {
     name: 'cart',
@@ -30,14 +33,14 @@ export class CartResolver {
     return this.cartService.getCart(user.userId);
   }
 
-  // ── Field resolvers ──────────────────────────────────────────────────────────
+  // ─── Field Resolvers ─────────────────────────────────────────────────────────
 
   @ResolveField(() => ProductVariant, { nullable: true })
   async productVariant(@Parent() cartItem: CartItem) {
     return this.cartItemVariantLoader.loader.load(cartItem.productVariantId);
   }
 
-  // ── Mutations ────────────────────────────────────────────────────────────────
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Create, CartItem))
   @Mutation(() => CartItem, {

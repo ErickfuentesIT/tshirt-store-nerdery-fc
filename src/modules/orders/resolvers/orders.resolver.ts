@@ -1,24 +1,24 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
-import { PoliciesGuard } from '../../common/guards/policies.guard.js';
-import { CheckPolicies } from '../../common/decorators/check-policies.decorator.js';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import type { CurrentUserType } from '../../common/decorators/current-user.decorator.js';
-import { Action } from '../../common/casl/casl.types.js';
-import { Order } from './models/order.model.js';
-import { OrderItem } from './models/order-item.model.js';
-import { Payment } from './models/payment.model.js';
-import { OrdersService } from './orders.service.js';
-import { CheckoutPayload } from './dto/checkout-payload.dto.js';
-import { MyOrdersFilterInput } from './dto/my-orders-filter.input.js';
-import { AssignDeliveryInput } from './dto/assign-delivery.input.js';
-import { OrderItemsLoader } from './loaders/order-items.loader.js';
-import { OrderPaymentsLoader } from './loaders/order-payments.loader.js';
-import { OrderShippingAddressLoader } from './loaders/order-shipping-address.loader.js';
-import { OrderStatusesLoader } from './loaders/order-statuses.loader.js';
-import { ShippingAddress } from '../shipping-addresses/models/shipping-address.model.js';
-import { OrderStatus } from './models/order-status.model.js';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard.js';
+import { PoliciesGuard } from '../../../common/guards/policies.guard.js';
+import { CheckPolicies } from '../../../common/decorators/check-policies.decorator.js';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
+import type { CurrentUserType } from '../../../common/decorators/current-user.decorator.js';
+import { Action } from '../../../common/casl/casl.types.js';
+import { Order } from '../models/order.model.js';
+import { OrderItem } from '../models/order-item.model.js';
+import { Payment } from '../models/payment.model.js';
+import { OrdersService } from '../services/orders.service.js';
+import { CheckoutPayload } from '../dto/checkout-payload.dto.js';
+import { MyOrdersFilterInput } from '../dto/my-orders-filter.input.js';
+import { AssignDeliveryInput } from '../dto/assign-delivery.input.js';
+import { OrderItemsLoader } from '../loaders/order-items.loader.js';
+import { OrderPaymentsLoader } from '../loaders/order-payments.loader.js';
+import { OrderShippingAddressLoader } from '../loaders/order-shipping-address.loader.js';
+import { OrderStatusesLoader } from '../loaders/order-statuses.loader.js';
+import { ShippingAddress } from '../../shipping-addresses/models/shipping-address.model.js';
+import { OrderStatus } from '../models/order-status.model.js';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Resolver(() => Order)
@@ -30,6 +30,8 @@ export class OrdersResolver {
     private readonly orderShippingAddressLoader: OrderShippingAddressLoader,
     private readonly orderStatusesLoader: OrderStatusesLoader,
   ) {}
+
+  // ─── Queries ─────────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Manage, Order))
   @Query(() => [Order], {
@@ -53,7 +55,7 @@ export class OrdersResolver {
     return this.ordersService.findAllForUser(user.userId, filters ?? {});
   }
 
-  // ── Field resolvers ──────────────────────────────────────────────────────────
+  // ─── Field Resolvers ───────────────────────────────────────────────────────────
 
   @ResolveField(() => [OrderItem], { nullable: true })
   items(@Parent() order: Order) {
@@ -76,7 +78,7 @@ export class OrdersResolver {
     return this.orderStatusesLoader.loader.load(order.id);
   }
 
-  // ── Mutations ────────────────────────────────────────────────────────────────
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Create, Order))
   @Mutation(() => CheckoutPayload, {
@@ -130,7 +132,7 @@ export class OrdersResolver {
     return this.ordersService.markOrderAsShipped(orderId, user.userId);
   }
 
-  // ── Client mutations ─────────────────────────────────────────────────────
+  // ─── Client Mutations ────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Update, Order))
   @Mutation(() => Order, {
@@ -146,7 +148,7 @@ export class OrdersResolver {
     return this.ordersService.cancelOrder(orderId, user.userId);
   }
 
-  // ── Delivery person ───────────────────────────────────────────────────────
+  // ─── Delivery Person ─────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Read, Order))
   @Query(() => [Order], {

@@ -80,6 +80,34 @@ input CreateProductWithVariantsInput {
   variants: [CreateVariantInput!]!
 }
 
+input CreatePromoCodeInput {
+  """
+  Products or variants this code applies to. Pass an empty array to create a store-wide code.
+  """
+  applications: [PromoCodeApplicationInput!]!
+
+  """Campaign to associate this code with."""
+  campaignId: ID
+
+  """The unique code string customers enter at checkout."""
+  code: String!
+  discountType: DiscountType!
+
+  """
+  For PERCENTAGE: percentage points (e.g. 10 = 10%). For FIXED: the discount amount in cents.
+  """
+  discountValue: Int!
+
+  """UTC datetime after which the code is no longer redeemable."""
+  expirationDate: DateTime!
+
+  """Minimum cart total in cents required to apply this code."""
+  minPurchaseAmountCents: Int
+
+  """Maximum total redemptions. Omit for unlimited usage."""
+  usageLimit: Int
+}
+
 input CreateShippingAddressInput {
   """Additional delivery instructions."""
   additionalDescription: String
@@ -112,6 +140,14 @@ input CreateVariantInput {
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+"""
+Whether the discount deducts a fixed cent amount or a percentage of the eligible subtotal.
+"""
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
 
 input GetSignedUrlInput {
   contentType: String!
@@ -183,6 +219,11 @@ type Mutation {
   """
   createProduct(data: CreateProductWithVariantsInput!): Product!
 
+  """
+  Creates a new promo code and its product/variant scope rules. Pass an empty applications array for a store-wide code. Restricted to managers.
+  """
+  createPromoCode(data: CreatePromoCodeInput!): PromoCode!
+
   """Saves a new shipping address for the authenticated user."""
   createShippingAddress(data: CreateShippingAddressInput!): ShippingAddress!
 
@@ -249,6 +290,11 @@ type Mutation {
 
   """Hard-deletes a product variant from the authenticated client's cart."""
   removeItemFromCart(productVariantId: ID!): CartItem!
+
+  """
+  Flips the isActive flag of a promo code. Deactivating prevents any further redemptions without deleting the record. Restricted to managers.
+  """
+  togglePromoCode(id: ID!): PromoCode!
 
   """Removes a like from a product variant."""
   unlikeVariant(productVariantId: ID!): Like!
@@ -423,6 +469,58 @@ type ProductVariant {
   stripeProductId: String
   updatedAt: DateTime!
   variantAttributes: [VariantAttributeCategory!]
+}
+
+type PromoCode {
+  """
+  Scope rules defining which products/variants are eligible. Empty = store-wide.
+  """
+  applications: [PromoCodeApplication!]!
+  campaignId: ID
+
+  """The code string customers enter at checkout."""
+  code: String!
+  createdAt: DateTime!
+  discountType: DiscountType!
+
+  """
+  For PERCENTAGE: percentage points (e.g. 10 = 10%). For FIXED: the discount amount in cents.
+  """
+  discountValue: Int!
+  expirationDate: DateTime!
+  id: ID!
+  isActive: Boolean!
+
+  """Minimum cart total in cents required to redeem this code."""
+  minPurchaseAmountCents: Int
+  updatedAt: DateTime!
+
+  """Maximum total redemptions allowed. Null means unlimited."""
+  usageLimit: Int
+  usedCount: Int!
+}
+
+type PromoCodeApplication {
+  id: ID!
+
+  """The product this rule targets."""
+  productId: ID!
+
+  """
+  When set, only this specific variant is eligible. When null, all variants of the product are eligible.
+  """
+  productVariantId: ID
+  promoCodeId: ID!
+}
+
+input PromoCodeApplicationInput {
+  """Product this rule targets."""
+  productId: ID!
+
+  """
+  Specific variant to restrict to. Omit to cover all variants of the product.
+  """
+  productVariantId: ID
 }
 
 type Query {

@@ -4,8 +4,8 @@ import { Queue } from 'bullmq';
 import {
   NOTIFY_LOW_STOCK_JOB,
   STOCK_NOTIFICATION_QUEUE,
-} from './constants/queue.constants.js';
-import type { LowStockNotificationJob } from './interfaces/stock-notification-job.interface.js';
+} from './../constants/queue.constants.js';
+import type { LowStockNotificationJob } from './../types/stock-notification-job.type.js';
 
 @Injectable()
 export class StockNotificationService {
@@ -14,25 +14,21 @@ export class StockNotificationService {
   ) {}
 
   /**
-   * Enqueues a low-stock notification job **only** when stock has just crossed
-   * the threshold from above 3 down to 3 or below.
-   *
-   * Calling this after every stock decrement is safe: the oldStock > 3 guard
-   * ensures the job is enqueued exactly once per threshold crossing rather than
-   * on every subsequent decrement.
+   * Enqueues a low-stock notification job **only** when stock hits 3
    */
   async checkAndDispatchLowStock(
-    variantId:   string,
-    oldStock:    number,
-    newStock:    number,
+    variantId: string,
+    oldStock: number,
+    newStock: number,
     productName: string,
-    imageUrl:    string | null,
+    imageUrl: string | null,
   ): Promise<void> {
     if (oldStock > 3 && newStock <= 3) {
       const payload: LowStockNotificationJob = {
         variantId,
         productName,
         imageUrl,
+        oldStock,
         newStock,
       };
 

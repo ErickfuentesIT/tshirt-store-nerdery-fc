@@ -16,6 +16,8 @@ export class AttributeCategoriesResolver {
     private readonly attributeCategoriesService: AttributeCategoriesService,
   ) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Read, AttributeCategory))
   @Query(() => [AttributeCategory], {
     name: 'attributeCategories',
@@ -33,6 +35,8 @@ export class AttributeCategoriesResolver {
   async findOne(@Args('id', { type: () => ID }) id: string) {
     return this.attributeCategoriesService.findOne(id);
   }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Update, AttributeCategory))
   @Mutation(() => AttributeCategory, {

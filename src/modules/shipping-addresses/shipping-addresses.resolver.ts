@@ -18,6 +18,8 @@ export class ShippingAddressesResolver {
     private readonly shippingAddressesService: ShippingAddressesService,
   ) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Read, ShippingAddress))
   @Query(() => [ShippingAddress], {
     name: 'myAddresses',
@@ -26,6 +28,8 @@ export class ShippingAddressesResolver {
   myAddresses(@CurrentUser() user: CurrentUserType) {
     return this.shippingAddressesService.findAllForUser(user.userId);
   }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Create, ShippingAddress))
   @Mutation(() => ShippingAddress, {

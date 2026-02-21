@@ -46,6 +46,11 @@ enum PaymentStatus {
   refunded  // Not implemented
 }
 
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
 // ******** MODELS ********
 
 model User {
@@ -106,6 +111,7 @@ model Product {
   category    Category         @relation(fields: [categoryId], references: [id])
   variants    ProductVariant[]
   images      Image[]
+  promoCodeApplications PromoCodeApplication[]
 
   @@map("products")
 }
@@ -131,6 +137,8 @@ model ProductVariant {
   likes       Like[]
   cartItems       CartItem[]
   orderItems      OrderItem[]
+  promoCodeApplications PromoCodeApplication[]
+
   @@index([productId, isActive])
   @@map("product_variants")
 }
@@ -311,4 +319,55 @@ model ShippingAddress {
   orders                Order[]
 
   @@map("shipping_addresses")
+}
+
+model PromoCode {
+  id                     String       @id @default(uuid()) @db.Uuid
+  campaignId             String?      @map("campaign_id") @db.Uuid
+  code                   String       @unique
+  discountType           DiscountType @map("discount_type")
+  minPurchaseAmountCents Int?         @map("min_purchase_amount_cents")
+  discountValue          Int          @map("discount_value")
+  expirationDate         DateTime     @map("expiration_date")
+  usageLimit             Int?         @map("usage_limit")
+  usedCount              Int          @default(0) @map("used_count")
+  isActive               Boolean      @default(true) @map("is_active")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  // --- Relations ---
+  campaign     Campaign?              @relation(fields: [campaignId], references: [id])
+  applications PromoCodeApplication[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodeApplication {
+  id               String  @id @default(uuid()) @db.Uuid
+  promoCodeId      String  @map("promo_code_id") @db.Uuid
+  productId        String  @map("product_id") @db.Uuid
+  productVariantId String? @map("product_variant_id") @db.Uuid
+
+  // --- Relations ---
+  promoCode      PromoCode       @relation(fields: [promoCodeId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
+
+  @@unique([promoCodeId, productId])
+  @@map("promo_code_applications")
+}
+
+model Campaign {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?  // Made optional, as descriptions usually are
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // --- Relations ---
+  // This completes the one-to-many link from the PromoCode model
+  promoCodes  PromoCode[]
+
+  @@map("campaigns")
 }

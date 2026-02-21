@@ -14,6 +14,8 @@ import { LikesService } from './likes.service.js';
 export class LikesResolver {
   constructor(private readonly likesService: LikesService) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Read, Like))
   @Query(() => [Like], {
     name: 'myLikes',
@@ -23,6 +25,8 @@ export class LikesResolver {
   async findUserLikes(@CurrentUser() user: CurrentUserType) {
     return this.likesService.findUserLikes(user.userId);
   }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Create, Like))
   @Mutation(() => Like, {

@@ -13,6 +13,8 @@ import { CreateCategoryInput } from './dto/create-category.dto.js';
 export class CategoriesResolver {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  // ─── Queries ─────────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Read, Category))
   @Query(() => [Category], {
     name: 'categories',
@@ -21,6 +23,8 @@ export class CategoriesResolver {
   async findAll() {
     return this.categoriesService.findAll();
   }
+
+  // ─── Mutations ───────────────────────────────────────────────────────────────
 
   @CheckPolicies((ability) => ability.can(Action.Create, Category))
   @Mutation(() => Category, {

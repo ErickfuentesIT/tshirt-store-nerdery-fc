@@ -18,6 +18,8 @@ export class AttributesResolver {
     private readonly attributeCategoryLoader: AttributeCategoryLoader,
   ) {}
 
+  // ─── Mutations ───────────────────────────────────────────────────────────────
+
   @CheckPolicies((ability) => ability.can(Action.Update, Attribute))
   @Mutation(() => Attribute, {
     description:
@@ -39,7 +41,7 @@ export class AttributesResolver {
     return this.attributesService.remove(id);
   }
 
-  // ── Field resolvers ────────────────────────────────────────────────────────
+  // ─── Field Resolvers ─────────────────────────────────────────────────────────
 
   @ResolveField(() => AttributeCategory, { nullable: true })
   async attributeCategory(@Parent() attribute: Attribute & { attributeCategoryId: string }) {

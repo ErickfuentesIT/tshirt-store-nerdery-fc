@@ -7,7 +7,7 @@ export class CustomConfigService {
 
   get app() {
     return {
-      port: this.configService.get<number>('PORT', { infer: true }),
+      port: parseInt(this.configService.get<string>('PORT', '3000'), 10),
     };
   }
 
@@ -70,8 +70,17 @@ export class CustomConfigService {
   get redis() {
     return {
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
+      port: parseInt(this.configService.get<string>('REDIS_PORT', '6379'), 10),
     };
+  }
+
+  get cors() {
+    const raw = this.configService.get<string>('ALLOWED_ORIGINS', '');
+    const origins = raw
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+    return { origins: origins.length > 0 ? origins : true };
   }
 }
 export { ConfigService };
