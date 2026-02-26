@@ -60,6 +60,17 @@ async function main() {
     },
   });
 
+    await prisma.user.upsert({
+    where: { email: 'josealvarez@ravn.co' },
+    update: {},
+    create: {
+      email:        'josealvarez@ravn.co',
+      username:     'josepo_buyer',
+      passwordHash,
+      role:         'client',        // ← enum value is 'delivery', not 'delivery_person'
+    },
+  });
+
   // ── 3. Category ───────────────────────────────────────────────────────────
   // `name` is NOT @unique, so we upsert on `id`.
   // `description` does NOT exist on the Category model.
@@ -147,6 +158,7 @@ async function main() {
   console.log('-------------------------------------------');
   console.log('🧑‍💼 Manager : manager@store.com  / Password123!');
   console.log('🛒 Client  : client@store.com   / Password123!');
+  console.log('🛒 Client  : josealvarez@ravn.co   / Password123!');
   console.log('🚚 Driver  : driver@store.com   / Password123!');
   console.log('🏷️  Promo   : LAUNCH20 (20% off, store-wide, min $20)');
   console.log('🏷️  Promo   : RAVN10   ($5 off RAVN T-Shirt)');
