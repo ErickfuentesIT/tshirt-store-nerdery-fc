@@ -26,7 +26,7 @@ describe('CategoriesService', () => {
         CategoriesService,
         {
           provide: PrismaService,
-          useValue: prismaMock, 
+          useValue: prismaMock,
         },
       ],
     }).compile();

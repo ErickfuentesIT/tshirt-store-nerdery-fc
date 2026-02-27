@@ -117,6 +117,9 @@
       "**/*.service.ts"
     ],
     "coverageDirectory": "../coverage",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(uuid)/)"
+    ],
     "testEnvironment": "node",
     "coverageThreshold": {
       "global": {
