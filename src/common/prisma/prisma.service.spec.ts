@@ -1,3 +1,11 @@
+jest.mock('../../../generated/prisma/client.js', () => ({
+  PrismaClient: class PrismaClient {},
+}));
+
+jest.mock('@prisma/adapter-pg', () => ({
+  PrismaPg: jest.fn().mockImplementation(() => ({})),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from './prisma.service.js';
 
