@@ -15,6 +15,9 @@ NestJS + GraphQL + Prisma e-commerce API.
 - **Storage**: AWS S3
 
 ---
+## Testing Coverage
+
+<img width="1236" height="903" alt="Captura de pantalla 2026-02-27 231232" src="https://github.com/user-attachments/assets/a0ecd9b9-7f88-4e85-9a4d-9cacca25823d" />
 
 ## Prerequisites
 
